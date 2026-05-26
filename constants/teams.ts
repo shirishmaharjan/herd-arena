@@ -1,16 +1,16 @@
 export const GROUPS_DATA: any = {
-  A: { teams: [{ id: 'mex', n: 'Mexico', c: 'mx', r: 15 }, { id: 'kor', n: 'South Korea', c: 'kr', r: 23 }, { id: 'cze', n: 'Czechia', c: 'cz', r: 40 }, { id: 'rsa', n: 'South Africa', c: 'za', r: 60 }] },
-  B: { teams: [{ id: 'sui', n: 'Switzerland', c: 'ch', r: 19 }, { id: 'can', n: 'Canada', c: 'ca', r: 48 }, { id: 'bih', n: 'Bosnia', c: 'ba', r: 70 }, { id: 'qat', n: 'Qatar', c: 'qa', r: 35 }] },
-  C: { teams: [{ id: 'bra', n: 'Brazil', c: 'br', r: 5 }, { id: 'mar', n: 'Morocco', c: 'ma', r: 13 }, { id: 'sco', n: 'Scotland', c: 'gb-sct', r: 38 }, { id: 'hai', n: 'Haiti', c: 'ht', r: 85 }] },
-  D: { teams: [{ id: 'usa', n: 'USA', c: 'us', r: 11 }, { id: 'tur', n: 'Türkiye', c: 'tr', r: 26 }, { id: 'par', n: 'Paraguay', c: 'py', r: 56 }, { id: 'aus', n: 'Australia', c: 'au', r: 24 }] },
-  E: { teams: [{ id: 'ger', n: 'Germany', c: 'de', r: 16 }, { id: 'ecu', n: 'Ecuador', c: 'ec', r: 30 }, { id: 'civ', n: 'Ivory Coast', c: 'ci', r: 39 }, { id: 'cur', n: 'Curacao', c: 'cw', r: 90 }] },
-  F: { teams: [{ id: 'ned', n: 'Netherlands', c: 'nl', r: 7 }, { id: 'jpn', n: 'Japan', c: 'jp', r: 18 }, { id: 'swe', n: 'Sweden', c: 'se', r: 28 }, { id: 'tun', n: 'Tunisia', c: 'tn', r: 41 }] },
-  G: { teams: [{ id: 'bel', n: 'Belgium', c: 'be', r: 3 }, { id: 'egy', n: 'Egypt', c: 'eg', r: 36 }, { id: 'irn', n: 'Iran', c: 'ir', r: 20 }, { id: 'nzl', n: 'New Zealand', c: 'nz', r: 101 }] },
-  H: { teams: [{ id: 'esp', n: 'Spain', c: 'es', r: 8 }, { id: 'uru', n: 'Uruguay', c: 'uy', r: 14 }, { id: 'ksa', n: 'Saudi Arabia', c: 'sa', r: 53 }, { id: 'cpv', n: 'Cape Verde', c: 'cv', r: 65 }] },
-  I: { teams: [{ id: 'fra', n: 'France', c: 'fr', r: 2 }, { id: 'nor', n: 'Norway', c: 'no', r: 44 }, { id: 'sen', n: 'Senegal', c: 'sn', r: 17 }, { id: 'irq', n: 'Iraq', c: 'iq', r: 58 }] },
-  J: { teams: [{ id: 'arg', n: 'Argentina', c: 'ar', r: 1 }, { id: 'aut', n: 'Austria', c: 'at', r: 25 }, { id: 'alg', n: 'Algeria', c: 'dz', r: 43 }, { id: 'jor', n: 'Jordan', c: 'jo', r: 71 }] },
-  K: { teams: [{ id: 'por', n: 'Portugal', c: 'pt', r: 6 }, { id: 'col', n: 'Colombia', c: 'co', r: 12 }, { id: 'cod', n: 'cd', r: 67 }, { id: 'uzb', n: 'uz', r: 64 }] },
-  L: { teams: [{ id: 'eng', n: 'England', c: 'gb-eng', r: 4 }, { id: 'cro', n: 'Croatia', c: 'hr', r: 10 }, { id: 'gha', n: 'Ghana', c: 'gh', r: 61 }, { id: 'pan', n: 'Panama', c: 'pa', r: 45 }] },
+  A: { teams: [{ id: 'mex', n: 'Mexico', c: 'mx', r: 15, ch: 75 }, { id: 'kor', n: 'South Korea', c: 'kr', r: 23, ch: 48 }, { id: 'cze', n: 'Czechia', c: 'cz', r: 40, ch: 45 }, { id: 'rsa', n: 'South Africa', c: 'za', r: 60, ch: 32 }] },
+  B: { teams: [{ id: 'sui', n: 'Switzerland', c: 'ch', r: 19, ch: 73 }, { id: 'can', n: 'Canada', c: 'ca', r: 48, ch: 62 }, { id: 'bih', n: 'Bosnia', c: 'ba', r: 70, ch: 38 }, { id: 'qat', n: 'Qatar', c: 'qa', r: 35, ch: 27 }] },
+  C: { teams: [{ id: 'bra', n: 'Brazil', c: 'br', r: 5, ch: 91 }, { id: 'mar', n: 'Morocco', c: 'ma', r: 13, ch: 49 }, { id: 'sco', n: 'Scotland', c: 'gb-sct', r: 38, ch: 46 }, { id: 'hai', n: 'Haiti', c: 'ht', r: 85, ch: 14 }] },
+  D: { teams: [{ id: 'usa', n: 'USA', c: 'us', r: 11, ch: 67 }, { id: 'tur', n: 'Türkiye', c: 'tr', r: 26, ch: 49 }, { id: 'par', n: 'Paraguay', c: 'py', r: 56, ch: 44 }, { id: 'aus', n: 'Australia', c: 'au', r: 24, ch: 40 }] },
+  E: { teams: [{ id: 'ger', n: 'Germany', c: 'de', r: 16, ch: 87 }, { id: 'ecu', n: 'Ecuador', c: 'ec', r: 30, ch: 60 }, { id: 'civ', n: 'Ivory Coast', c: 'ci', r: 39, ch: 40 }, { id: 'cur', n: 'Curacao', c: 'cw', r: 90, ch: 13 }] },
+  F: { teams: [{ id: 'ned', n: 'Netherlands', c: 'nl', r: 7, ch: 74 }, { id: 'jpn', n: 'Japan', c: 'jp', r: 18, ch: 55 }, { id: 'swe', n: 'Sweden', c: 'se', r: 28, ch: 40 }, { id: 'tun', n: 'Tunisia', c: 'tn', r: 41, ch: 30 }] },
+  G: { teams: [{ id: 'bel', n: 'Belgium', c: 'be', r: 3, ch: 86 }, { id: 'egy', n: 'Egypt', c: 'eg', r: 36, ch: 48 }, { id: 'irn', n: 'Iran', c: 'ir', r: 20, ch: 44 }, { id: 'nzl', n: 'New Zealand', c: 'nz', r: 101, ch: 22 }] },
+  H: { teams: [{ id: 'esp', n: 'Spain', c: 'es', r: 8, ch: 90 }, { id: 'uru', n: 'Uruguay', c: 'uy', r: 14, ch: 66 }, { id: 'ksa', n: 'Saudi Arabia', c: 'sa', r: 53, ch: 23 }, { id: 'cpv', n: 'Cape Verde', c: 'cv', r: 65, ch: 21 }] },
+  I: { teams: [{ id: 'fra', n: 'France', c: 'fr', r: 2, ch: 83 }, { id: 'nor', n: 'Norway', c: 'no', r: 44, ch: 49 }, { id: 'sen', n: 'Senegal', c: 'sn', r: 17, ch: 38 }, { id: 'irq', n: 'Iraq', c: 'iq', r: 58, ch: 30 }] },
+  J: { teams: [{ id: 'arg', n: 'Argentina', c: 'ar', r: 1, ch: 86 }, { id: 'aut', n: 'Austria', c: 'at', r: 25, ch: 57 }, { id: 'alg', n: 'Algeria', c: 'dz', r: 43, ch: 40 }, { id: 'jor', n: 'Jordan', c: 'jo', r: 71, ch: 17 }] },
+  K: { teams: [{ id: 'por', n: 'Portugal', c: 'pt', r: 6, ch: 78 }, { id: 'col', n: 'Colombia', c: 'co', r: 12, ch: 65 }, { id: 'cod', n: 'cd', r: 67, ch: 34 }, { id: 'uzb', n: 'uz', r: 64, ch: 23 }] },
+  L: { teams: [{ id: 'eng', n: 'England', c: 'gb-eng', r: 4, ch: 87 }, { id: 'cro', n: 'Croatia', c: 'hr', r: 10, ch: 55 }, { id: 'gha', n: 'Ghana', c: 'gh', r: 61, ch: 39 }, { id: 'pan', n: 'Panama', c: 'pa', r: 45, ch: 19 }] },
 };
 
 export const BRACKET_MAPPING = [
