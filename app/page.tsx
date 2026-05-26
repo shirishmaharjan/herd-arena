@@ -1,26 +1,44 @@
 'use client';
 import React, { useState, useMemo, useEffect } from 'react';
-import { Trophy, Check, Award, LayoutGrid, Info, ShieldCheck, Save, LogOut, LogIn } from 'lucide-react';
+import { Trophy, Check, Award, LayoutGrid, Info, ShieldCheck, Save, LogOut, LogIn, UserCircle } from 'lucide-react';
 import { GROUPS_DATA, BRACKET_MAPPING } from '../constants/teams';
 import { supabase } from '../lib/supabase';
 
 export default function HerdArena() {
+  // UI and Lifecycle State
   const [hasMounted, setHasMounted] = useState(false);
-  const [user, setUser] = useState<any>(null);
+  const [isEntryComplete, setIsEntryComplete] = useState(false);
   const [view, setView] = useState('bracket');
   const [isAdmin, setIsAdmin] = useState(false);
+  const [user, setUser] = useState<any>(null);
+
+  // Bracket State
+  const [bracketName, setBracketName] = useState('');
   const [standings, setStandings] = useState<any>({});
   const [bracketWinners, setBracketWinners] = useState<any>({});
-  const [bracketName, setBracketName] = useState('Shirish Maharjan');
 
-  // 1. SOLVE HYDRATION (The screen recorder fix)
+  // 1. SOLVE HYDRATION & INITIAL LOAD
   useEffect(() => {
     setHasMounted(true);
+
+    // Check if name is already in LocalStorage
+    const savedName = localStorage.getItem('herd_user_name');
+    if (savedName) {
+      setBracketName(savedName);
+      setIsEntryComplete(true);
+    }
+
+    // Get Auth Session
     const getSession = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       setUser(session?.user ?? null);
     };
     getSession();
+
+    const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+    });
+    return () => authListener.subscription.unsubscribe();
   }, []);
 
   // 2. LOGIC ENGINE
@@ -31,13 +49,14 @@ export default function HerdArena() {
       const tId = standings[gid]?.[3];
       return tId ? getTeam(tId) : null;
     }).filter(Boolean);
+    // Sort by FIFA Rank (Lowest number = better rank) and take top 8
     return thirds.sort((a: any, b: any) => a.r - b.r).slice(0, 8);
   }, [standings]);
 
   const resolveTeam = (slot: string) => {
     if (slot.startsWith('W')) return bracketWinners['m' + slot.substring(1)];
     
-    // Fixed Placeholders for 3rd Place Match
+    // Logic for 3rd Place Match Losers
     if (slot === 'L101' || slot === 'L102') {
         const mId = 'm' + slot.substring(1);
         const winner = bracketWinners[mId];
@@ -60,26 +79,63 @@ export default function HerdArena() {
     return tId ? getTeam(tId) : { placeholder: `${rank === 1 ? 'Winner' : '2nd'} Group ${gId}` };
   };
 
-  // 3. DATABASE ACTIONS
+  // 3. ACTIONS
+  const handleJoin = () => {
+    if (bracketName.trim().length < 2) return alert("Please enter your name to start.");
+    localStorage.setItem('herd_user_name', bracketName);
+    setIsEntryComplete(true);
+  };
+
   const submitToDatabase = async () => {
     const table = isAdmin ? 'official_results' : 'submissions';
     const payload = {
       bracket_name: isAdmin ? 'OFFICIAL_RESULTS' : bracketName,
-      user_id: user?.id,
+      user_id: user?.id || null,
       bracket_data: { standings, bracketWinners, thirds: autoSelectedThirds }
     };
     const { error } = await supabase.from(table).insert([payload]);
     if (error) alert(error.message);
-    else alert(`Successfully saved to ${table}!`);
+    else alert(`Successfully saved to ${table}! Good luck, ${bracketName}!`);
   };
 
-  // If the page hasn't finished loading in your browser, show a blank screen 
-  // This prevents the error message you are seeing
   if (!hasMounted) return null;
 
+  // --- WELCOME SCREEN (SMART ENTRY) ---
+  if (!isEntryComplete) {
+    return (
+      <div className="min-h-screen bg-blue-600 flex items-center justify-center p-6 text-white font-sans">
+        <div className="bg-white p-12 rounded-[40px] shadow-2xl max-w-md w-full text-center text-slate-900 animate-in fade-in zoom-in duration-500">
+          <div className="bg-blue-50 w-20 h-20 rounded-3xl flex items-center justify-center mx-auto mb-6">
+            <Trophy size={40} className="text-blue-600" />
+          </div>
+          <h1 className="text-3xl font-black mb-2 tracking-tighter uppercase italic text-slate-800">Herd <span className="text-blue-600">Arena</span></h1>
+          <p className="text-slate-400 text-sm font-bold uppercase tracking-widest mb-10">2026 World Cup Challenge</p>
+          
+          <div className="space-y-4 text-left">
+            <label className="text-[10px] font-black text-slate-400 uppercase ml-2 tracking-widest">Enter Your Full Name</label>
+            <input 
+              type="text" 
+              placeholder="e.g. Shirish Maharjan"
+              className="w-full p-5 rounded-[1.5rem] border-2 border-slate-50 bg-slate-50 focus:bg-white focus:border-blue-500 outline-none transition-all font-bold text-lg"
+              value={bracketName}
+              onChange={(e) => setBracketName(e.target.value)}
+            />
+            <button 
+              onClick={handleJoin}
+              className="w-full bg-blue-600 text-white p-5 rounded-[1.5rem] font-black shadow-xl shadow-blue-100 hover:bg-blue-700 hover:scale-[1.02] transition-all active:scale-95 flex items-center justify-center gap-2"
+            >
+              START MY PREDICTION <ArrowRight size={20} />
+            </button>
+          </div>
+          <p className="mt-8 text-xs text-slate-300 font-medium italic">Compete with 60 colleagues at Herd International</p>
+        </div>
+      </div>
+    );
+  }
+
+  // --- MAIN APP UI ---
   return (
     <div className="min-h-screen bg-[#f8fafc] text-slate-900 font-sans pb-40">
-      {/* NAV: HERD BLUE THEME */}
       <nav className="bg-white border-b border-slate-100 px-10 py-5 sticky top-0 z-50 flex justify-between items-center shadow-sm">
         <div className="flex items-center gap-3">
           <div className="bg-blue-600 p-2 rounded-xl text-white shadow-lg shadow-blue-100"><Trophy size={20} /></div>
@@ -90,7 +146,7 @@ export default function HerdArena() {
              <button onClick={() => setView('bracket')} className={`px-5 py-2 rounded-xl text-[10px] font-black transition ${view === 'bracket' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-400'}`}>BRACKET</button>
              <button onClick={() => setView('leaderboard')} className={`px-5 py-2 rounded-xl text-[10px] font-black transition ${view === 'leaderboard' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-400'}`}>LEADERBOARD</button>
            </div>
-           <button onClick={() => {const p = prompt("Admin Pass?"); if(p==="herd2026") setIsAdmin(!isAdmin)}} className={`p-2 rounded-lg ${isAdmin ? 'text-blue-600 bg-blue-50' : 'text-slate-200'}`}><ShieldCheck size={18}/></button>
+           <button onClick={() => {const p = prompt("Admin Pass?"); if(p==="herd2026") setIsAdmin(!isAdmin)}} className={`p-2 rounded-lg ${isAdmin ? 'text-blue-600 bg-blue-50' : 'text-slate-200 hover:text-blue-400'}`}><ShieldCheck size={18}/></button>
         </div>
       </nav>
 
@@ -99,8 +155,9 @@ export default function HerdArena() {
           <>
             <div className="bg-gradient-to-br from-blue-500 to-indigo-800 rounded-[50px] p-12 text-white shadow-2xl shadow-blue-100 flex justify-between items-center">
                <div>
-                  <h2 className="text-5xl font-black italic tracking-tighter mb-2 underline decoration-blue-300 decoration-4 underline-offset-8">Good Luck, {bracketName}!</h2>
+                  <h2 className="text-5xl font-black italic tracking-tighter mb-2 underline decoration-blue-300 decoration-4 underline-offset-8 uppercase">Good Luck, {bracketName}!</h2>
                   <p className="text-blue-100 font-medium italic">8 best 3rd-place teams automatically chosen by FIFA Rank.</p>
+                  <button onClick={() => setIsEntryComplete(false)} className="mt-4 text-[10px] font-black uppercase text-blue-200 hover:text-white transition flex items-center gap-2">Not you? Change Name</button>
                </div>
                <div className="bg-white/20 px-8 py-3 rounded-3xl border border-white/30 text-[10px] font-black uppercase tracking-widest">Predicting</div>
             </div>
@@ -130,10 +187,10 @@ export default function HerdArena() {
             </section>
 
             {/* 2. AUTO-THIRDS PREVIEW */}
-            <div className="bg-blue-50 border-2 border-dashed border-blue-100 p-8 rounded-[40px] flex items-center gap-6">
+            <div className="bg-blue-50 border-2 border-dashed border-blue-200 p-8 rounded-[40px] flex items-center gap-6">
                 <div className="bg-white p-4 rounded-3xl text-blue-600 shadow-sm"><Info /></div>
                 <div className="flex-1">
-                   <h4 className="font-black text-blue-900 uppercase text-[10px] tracking-widest mb-3">Qualified 3rd Place Teams (FIFA Rank Sort)</h4>
+                   <h4 className="font-black text-blue-900 uppercase text-[10px] tracking-widest mb-3 italic">System Logic: Top 8 Third-Place Teams (FIFA Rank)</h4>
                    <div className="flex gap-2 flex-wrap">
                       {autoSelectedThirds.map(t => <span key={t.id} className="bg-white px-3 py-1 rounded-lg text-[10px] font-bold shadow-sm border border-blue-100 flex items-center gap-2 animate-in fade-in zoom-in duration-300"><img src={`https://flagcdn.com/w20/${t.c}.png`} className="w-3" alt=""/> {t.n}</span>)}
                       {autoSelectedThirds.length === 0 && <p className="text-blue-300 text-[10px] uppercase font-bold italic">Select rank 3 teams in the groups to populate...</p>}
@@ -158,7 +215,7 @@ export default function HerdArena() {
                      <MatchBox m={BRACKET_MAPPING[31]} t1={resolveTeam('W101')} t2={resolveTeam('W102')} winner={bracketWinners['m104']} onPick={(w: any) => setBracketWinners((p: any) => ({ ...p, ['m104']: w }))} />
                      <div className="mt-8 border-t pt-6">
                         <p className="text-[10px] font-black text-slate-400 uppercase mb-2">Grand Champion</p>
-                        <div className="text-3xl font-black text-blue-600 italic uppercase truncate">{bracketWinners['m104']?.n || 'READY TO CROWN'}</div>
+                        <div className="text-3xl font-black text-blue-600 italic uppercase truncate tracking-tight">{bracketWinners['m104']?.n || 'READY TO CROWN'}</div>
                      </div>
                   </div>
                </div>
@@ -167,21 +224,21 @@ export default function HerdArena() {
         ) : (
           <div className="max-w-2xl mx-auto bg-white p-12 rounded-[60px] shadow-2xl border border-slate-50 text-center">
              <Trophy size={48} className="mx-auto text-blue-600 mb-6" />
-             <h2 className="text-4xl font-black mb-10 italic uppercase tracking-tighter text-slate-800">Herd Arena Standings</h2>
+             <h2 className="text-4xl font-black mb-10 italic uppercase tracking-tighter text-slate-800">Office Standings</h2>
              <div className="space-y-4">
                 <div className="flex justify-between items-center p-8 bg-blue-50 rounded-[40px] border border-blue-100 shadow-sm">
                     <span className="font-bold flex items-center gap-6 text-xl"><span className="text-blue-300 font-mono italic text-2xl">#1</span> {bracketName}</span>
-                    <span className="font-black text-blue-600 text-3xl">0 <span className="text-[12px] uppercase text-slate-400 ml-1">pts</span></span>
+                    <span className="font-black text-blue-600 text-3xl">0 <span className="text-[12px] uppercase text-slate-400 ml-1 font-mono">pts</span></span>
                 </div>
              </div>
+             <p className="mt-10 text-slate-400 text-xs italic">Live updates coming soon as real matches begin!</p>
           </div>
         )}
       </main>
 
-      {/* FINAL SUBMIT BUTTON */}
-      <div className="fixed bottom-10 left-1/2 -translate-x-1/2">
-         <button onClick={submitToDatabase} className="bg-slate-900 text-white px-20 py-5 rounded-[2rem] font-black shadow-[0_30px_70px_rgba(0,0,0,0.3)] hover:scale-105 active:scale-95 transition flex items-center gap-3 tracking-widest uppercase text-xs">
-            <Save size={18}/> {isAdmin ? 'Save Official Score' : 'Submit Bracket'}
+      <div className="fixed bottom-10 left-1/2 -translate-x-1/2 z-[60]">
+         <button onClick={submitToDatabase} className="bg-slate-900 text-white px-20 py-5 rounded-[2.5rem] font-black shadow-[0_30px_70px_rgba(0,0,0,0.3)] hover:scale-105 active:scale-95 transition-all flex items-center gap-3 tracking-[0.2em] uppercase text-[11px]">
+            <Save size={18}/> {isAdmin ? 'Save Official Results' : 'Submit Bracket'}
          </button>
       </div>
     </div>
@@ -202,11 +259,11 @@ function BracketCol({ label, slice, resolve, winners, setWinners, spacing = "spa
 
 function MatchBox({ t1, t2, winner, onPick }: any) {
   return (
-    <div className="bg-white border border-slate-200 rounded-[1.5rem] overflow-hidden shadow-sm hover:shadow-md transition duration-300">
+    <div className="bg-white border border-slate-200 rounded-[1.5rem] overflow-hidden shadow-sm hover:shadow-md transition-all duration-300 group">
       {[t1, t2].map((t, i) => (
         <button key={i} disabled={t?.placeholder} onClick={() => onPick(t)} className={`w-full text-left p-4 flex justify-between items-center border-b last:border-0 border-slate-50 transition-all ${winner?.id === t?.id ? 'bg-blue-600 text-white font-bold' : 'hover:bg-blue-50'}`}>
           <div className="flex items-center gap-3 overflow-hidden">
-            {t?.c ? <img src={`https://flagcdn.com/w40/${t.c}.png`} className="w-5 h-3.5 object-cover rounded-sm" alt="" /> : <span className="text-xl">🏳️</span>}
+            {t?.c ? <img src={`https://flagcdn.com/w40/${t.c}.png`} className="w-5 h-3.5 object-cover rounded shadow-sm" alt="" /> : <div className="w-5 h-3.5 bg-slate-100 rounded-sm" />}
             <span className={`text-[10px] font-black uppercase tracking-tight truncate ${t?.placeholder ? 'text-slate-300 italic font-medium' : 'text-slate-800'}`}>{t?.n || t?.placeholder}</span>
           </div>
           {winner?.id === t?.id && <Check size={16} strokeWidth={4} />}
