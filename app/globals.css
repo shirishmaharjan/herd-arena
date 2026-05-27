@@ -1,7 +1,18 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  margin: 0;
+  padding: 0;
+  overflow-x: hidden;
+}
+
+/* Smooth zoom for background */
 @keyframes slowZoom {
   0% { transform: scale(1); }
-  100% { transform: scale(1.1); }
+  100% { transform: scale(1.15); }
 }
-.animate-slow-zoom {
-  animation: slowZoom 30s infinite alternate ease-in-out;
+.animate-bg-zoom {
+  animation: slowZoom 40s infinite alternate ease-in-out;
 }
