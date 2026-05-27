@@ -1,26 +1,52 @@
-@import "tailwindcss";
+/* 1. Essential Tailwind Imports */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
+/* 2. Global Resets */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --background: #f8fafc;
+  --foreground: #0f172a;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  margin: 0;
+  padding: 0;
+  overflow-x: hidden; /* Prevents horizontal scrolling */
+}
+
+/* 3. Custom Animations for the Pro UI */
+
+/* Slow Zoom for the Stadium Background */
+@keyframes slowZoom {
+  0% { transform: scale(1); }
+  100% { transform: scale(1.15); }
+}
+.animate-slow-zoom {
+  animation: slowZoom 40s infinite alternate ease-in-out;
+}
+
+/* Auto-Scrolling Marquee for the Players Section */
+@keyframes marquee {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+.animate-marquee {
+  display: flex;
+  width: max-content;
+  animation: marquee 40s linear infinite;
+}
+.animate-marquee:hover {
+  animation-play-state: paused; /* Stops sliding when you hover to look at a player */
+}
+
+/* Hide scrollbars for the bracket while keeping functionality */
+.no-scrollbar::-webkit-scrollbar {
+    display: none;
+}
+.no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
 }
