@@ -71,43 +71,47 @@ export default function HerdArenaFinalMaster() {
 
   if (!hasMounted) return null;
 
-  // --- WELCOME SCREEN (IMAGE 1 & 2 COMBINED) ---
+  // --- WELCOME SCREEN (HYDRATION & IMAGE FIX) ---
   if (!isEntryComplete) {
     return (
-      <div className="min-h-screen relative flex items-center justify-center p-4 font-sans overflow-hidden">
+      <div className="min-h-screen relative flex items-center justify-center p-4 font-sans overflow-hidden bg-blue-700"> {/* Added solid fallback bg */}
         
         {/* DYNAMIC BACKGROUND LAYERS */}
         <div className="absolute inset-0 z-0">
-          <div className="absolute inset-0 bg-cover bg-center" 
-               style={{ 
-                 backgroundImage: "url('https://images.unsplash.com/photo-1508098682722-e99c43a406b2?q=80&w=2000')", 
-                 filter: 'brightness(0.4)' 
-               }} />
-          <div className="absolute inset-0 bg-blue-600/30 mix-blend-overlay" />
+          {/* THE STADIUM IMAGE */}
+          <div 
+            className="absolute inset-0 bg-cover bg-center transition-opacity duration-1000"
+            style={{ 
+              backgroundImage: "url('https://images.unsplash.com/photo-1508098682722-e99c43a406b2?q=80&w=2000')", 
+              filter: 'brightness(0.4) contrast(1.1)' 
+            }} 
+          />
+          {/* THE BLUE GRADIENT OVERLAY */}
+          <div className="absolute inset-0 bg-gradient-to-br from-blue-600/50 via-transparent to-black/70" />
         </div>
 
-        {/* LOGIN CARD */}
-        <div className="relative z-10 bg-white/95 backdrop-blur-2xl rounded-[45px] shadow-2xl max-w-4xl w-full flex flex-col md:flex-row overflow-hidden border border-white/20">
+        {/* LOGIN CARD (Glassmorphism) */}
+        <div className="relative z-10 bg-white/95 backdrop-blur-md rounded-[45px] shadow-[0_50px_100px_-20px_rgba(0,0,0,0.5)] max-w-4xl w-full flex flex-col md:flex-row overflow-hidden border border-white/20">
           
-          {/* LEFT: RULES (Exact copy of Image 1) */}
-          <div className="bg-[#111827] p-10 text-white md:w-1/2 relative overflow-hidden">
+          {/* LEFT: RULES */}
+          <div className="bg-[#0f172a] p-10 text-white md:w-1/2 relative overflow-hidden">
              <Trophy size={180} className="absolute -bottom-10 -left-10 text-white/[0.03] -rotate-12" />
-             <h2 className="text-4xl font-black italic tracking-tighter mb-8 border-b border-blue-500 pb-4 relative z-10">ARENA RULES</h2>
+             <h2 className="text-4xl font-black italic tracking-tighter mb-8 border-b border-blue-500 pb-4 relative z-10 uppercase">ARENA RULES</h2>
              <div className="space-y-6 relative z-10">
                 <div className="flex gap-4 items-start">
-                  <div className="bg-blue-600 p-2 rounded-xl"><Info size={20}/></div>
+                  <div className="bg-blue-600 p-2 rounded-xl shrink-0"><Info size={20}/></div>
                   <div><p className="font-bold text-lg leading-tight">Group Stage</p><p className="text-slate-400 text-xs mt-0.5">+2 Points for every correct rank (1st, 2nd, 3rd) in the group.</p></div>
                 </div>
                 <div className="flex gap-4 items-start">
-                  <div className="bg-indigo-600 p-2 rounded-xl"><Check size={20}/></div>
+                  <div className="bg-indigo-600 p-2 rounded-xl shrink-0"><Check size={20}/></div>
                   <div><p className="font-bold text-lg leading-tight">Knockout Wins</p><p className="text-slate-400 text-xs mt-0.5">+5 Points for every correct winner in R32, R16, QF, and SF.</p></div>
                 </div>
                 <div className="flex gap-4 items-start">
-                  <div className="bg-amber-500 p-2 rounded-xl"><Award size={20}/></div>
-                  <div><p className="font-bold text-lg leading-tight">Special Matches</p><p className="text-slate-400 text-xs mt-0.5">+10 for 3rd Place Play-off winner and +20 for the Final Winner.</p></div>
+                  <div className="bg-amber-500 p-2 rounded-xl shrink-0"><Award size={20}/></div>
+                  <div><p className="font-bold text-lg leading-tight">Special Matches</p><p className="text-slate-400 text-xs mt-0.5">+10 for 3rd Place Match and +20 for the Final Winner.</p></div>
                 </div>
                 <div className="flex gap-4 items-start">
-                  <div className="bg-emerald-500 p-2 rounded-xl"><Star size={20}/></div>
+                  <div className="bg-emerald-500 p-2 rounded-xl shrink-0"><Star size={20}/></div>
                   <div><p className="font-bold text-lg leading-tight">Player Honors</p><p className="text-slate-400 text-xs mt-0.5">+5 Points each for Golden Ball, Boot, and Gloves.</p></div>
                 </div>
                 <div className="bg-red-500/10 border border-red-500/30 p-4 rounded-2xl flex gap-3 mt-4">
@@ -117,14 +121,25 @@ export default function HerdArenaFinalMaster() {
              </div>
           </div>
 
-          {/* RIGHT: JOIN (Exact copy of Image 1 branding) */}
+          {/* RIGHT: JOIN */}
           <div className="p-12 md:w-1/2 flex flex-col justify-center items-center text-center bg-white">
              <Trophy size={64} className="text-blue-600 mb-6 drop-shadow-xl" />
              <h1 className="text-4xl font-black mb-1 italic tracking-tighter text-slate-900 uppercase">Herd <span className="text-blue-600">Arena</span></h1>
              <p className="text-slate-400 text-[10px] font-bold uppercase tracking-[0.3em] mb-12">Championship 2026</p>
              <div className="space-y-4 w-full max-w-xs">
-                <input type="text" placeholder="Full Legal Name" className="w-full px-6 py-4 rounded-2xl border-2 border-slate-50 bg-slate-50 outline-none font-bold text-lg focus:bg-white focus:border-blue-600 transition-all shadow-inner" value={bracketName} onChange={(e) => setBracketName(e.target.value)} />
-                <button onClick={handleJoin} className="w-full bg-blue-600 text-white p-5 rounded-2xl font-black shadow-xl hover:bg-blue-700 transition-all flex items-center justify-center gap-3 text-xs tracking-widest uppercase">ENTER ARENA <ArrowRight size={18}/></button>
+                <input 
+                  type="text" 
+                  placeholder="Full Legal Name" 
+                  className="w-full px-6 py-4 rounded-2xl border-2 border-slate-100 bg-slate-50 outline-none font-bold text-lg focus:bg-white focus:border-blue-600 transition-all shadow-inner" 
+                  value={bracketName} 
+                  onChange={(e) => setBracketName(e.target.value)} 
+                />
+                <button 
+                  onClick={handleJoin} 
+                  className="w-full bg-blue-600 text-white p-5 rounded-2xl font-black shadow-xl hover:bg-blue-700 transition-all flex items-center justify-center gap-3 text-xs tracking-widest uppercase"
+                >
+                  ENTER ARENA <ArrowRight size={18}/>
+                </button>
              </div>
           </div>
         </div>
