@@ -10,13 +10,11 @@ export default function HerdArenaFinalMaster() {
   const [view, setView] = useState('bracket');
   const [isAdmin, setIsAdmin] = useState(false);
   
-  // App State
   const [bracketName, setBracketName] = useState('');
   const [standings, setStandings] = useState<any>({});
   const [bracketWinners, setBracketWinners] = useState<any>({});
   const [awards, setAwards] = useState({ ball: '', boot: '', gloves: '' });
 
-  // 1. HYDRATION & PERSISTENCE
   useEffect(() => {
     setHasMounted(true);
     const savedName = localStorage.getItem('herd_user_name');
@@ -25,13 +23,11 @@ export default function HerdArenaFinalMaster() {
 
   const getTeam = (id: string) => Object.values(GROUPS_DATA).flatMap((g: any) => g.teams).find((t: any) => t.id === id);
 
-  // 2. AUTOMATIC 8 BEST 3rds LOGIC (FIFA RANK)
   const autoSelectedThirds = useMemo(() => {
     const thirds = Object.keys(GROUPS_DATA).map(gid => {
       const tId = standings[gid]?.[3];
       return tId ? { ...getTeam(tId), group: gid } : null;
     }).filter(Boolean);
-    // Sort by FIFA Rank (Lowest number = better) and take top 8
     return (thirds as any[]).sort((a: any, b: any) => a.r - b.r).slice(0, 8);
   }, [standings]);
 
@@ -55,7 +51,6 @@ export default function HerdArenaFinalMaster() {
     return tId ? getTeam(tId) : { placeholder: `${rank === 1 ? 'Winner' : '2nd'} Group ${gId}` };
   };
 
-  // 3. ACTIONS
   const handleJoin = () => {
     if (bracketName.trim().length < 2) return alert("Please enter your correct name.");
     localStorage.setItem('herd_user_name', bracketName);
@@ -74,47 +69,30 @@ export default function HerdArenaFinalMaster() {
     else alert("Success! Your prediction is locked into Herd Arena.");
   };
 
-  const recalculateScores = async () => {
-    const { data: official } = await supabase.from('official_results').select('*').order('created_at', { ascending: false }).limit(1).single();
-    if (!official) return alert("Admin: Set official results first!");
-    const { data: subs } = await supabase.from('submissions').select('*');
-    if (!subs) return;
-    for (const sub of subs) {
-      let score = 0; const u = sub.bracket_data; const off = official.bracket_data;
-      Object.keys(off.standings || {}).forEach(gid => [1,2,3].forEach(r => { if(u.standings?.[gid]?.[r] === off.standings[gid][r]) score += 2; }));
-      Object.keys(off.bracketWinners || {}).forEach(mid => {
-        if(u.bracketWinners?.[mid]?.id === off.bracketWinners[mid]?.id) {
-          const m = parseInt(mid.substring(1));
-          if(m <= 102) score += 5; else if(m === 103) score += 10; else if(m === 104) score += 20;
-        }
-      });
-      if(sub.golden_ball?.toLowerCase() === official.golden_ball?.toLowerCase() && official.golden_ball) score += 5;
-      if(sub.golden_boot?.toLowerCase() === official.golden_boot?.toLowerCase() && official.golden_boot) score += 5;
-      if(sub.golden_gloves?.toLowerCase() === official.golden_gloves?.toLowerCase() && official.golden_gloves) score += 5;
-      await supabase.from('submissions').update({ points: score }).eq('id', sub.id);
-    }
-    alert("Herd Standings Updated!"); window.location.reload();
-  };
-
   if (!hasMounted) return null;
 
-  // --- WELCOME SCREEN WITH STADIUM BACKGROUND ---
+  // --- WELCOME SCREEN (IMAGE 1 & 2 COMBINED) ---
   if (!isEntryComplete) {
     return (
       <div className="min-h-screen relative flex items-center justify-center p-4 font-sans overflow-hidden">
-        {/* BACKGROUND LAYERS */}
+        
+        {/* DYNAMIC BACKGROUND LAYERS */}
         <div className="absolute inset-0 z-0">
-          <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: "url('/stadium.jpg')", filter: 'brightness(0.6)' }} />
-          <div className="absolute inset-0 opacity-10 bg-repeat" style={{ backgroundImage: "url('/football-texture.png')", backgroundSize: '150px' }} />
-          <div className="absolute inset-0 bg-blue-600/40 mix-blend-multiply" />
+          <div className="absolute inset-0 bg-cover bg-center" 
+               style={{ 
+                 backgroundImage: "url('https://images.unsplash.com/photo-1508098682722-e99c43a406b2?q=80&w=2000')", 
+                 filter: 'brightness(0.4)' 
+               }} />
+          <div className="absolute inset-0 bg-blue-600/30 mix-blend-overlay" />
         </div>
 
         {/* LOGIN CARD */}
-        <div className="relative z-10 bg-white/95 backdrop-blur-xl rounded-[45px] shadow-2xl max-w-4xl w-full flex flex-col md:flex-row overflow-hidden border border-white/20">
-          {/* LEFT: RULES (Matching Image 1) */}
+        <div className="relative z-10 bg-white/95 backdrop-blur-2xl rounded-[45px] shadow-2xl max-w-4xl w-full flex flex-col md:flex-row overflow-hidden border border-white/20">
+          
+          {/* LEFT: RULES (Exact copy of Image 1) */}
           <div className="bg-[#111827] p-10 text-white md:w-1/2 relative overflow-hidden">
              <Trophy size={180} className="absolute -bottom-10 -left-10 text-white/[0.03] -rotate-12" />
-             <h2 className="text-4xl font-black italic tracking-tighter mb-8 border-b border-blue-500 pb-4 relative z-10 uppercase">ARENA RULES</h2>
+             <h2 className="text-4xl font-black italic tracking-tighter mb-8 border-b border-blue-500 pb-4 relative z-10">ARENA RULES</h2>
              <div className="space-y-6 relative z-10">
                 <div className="flex gap-4 items-start">
                   <div className="bg-blue-600 p-2 rounded-xl"><Info size={20}/></div>
@@ -133,19 +111,19 @@ export default function HerdArenaFinalMaster() {
                   <div><p className="font-bold text-lg leading-tight">Player Honors</p><p className="text-slate-400 text-xs mt-0.5">+5 Points each for Golden Ball, Boot, and Gloves.</p></div>
                 </div>
                 <div className="bg-red-500/10 border border-red-500/30 p-4 rounded-2xl flex gap-3 mt-4">
-                   <AlertCircle className="text-red-600 shrink-0" size={18} />
+                   <AlertCircle className="text-red-500 shrink-0" size={18} />
                    <p className="text-[10px] font-black text-red-500 uppercase tracking-widest leading-relaxed">Disqualification: Use real names. One submission only. Duplicates will be disqualified.</p>
                 </div>
              </div>
           </div>
 
-          {/* RIGHT: JOIN */}
+          {/* RIGHT: JOIN (Exact copy of Image 1 branding) */}
           <div className="p-12 md:w-1/2 flex flex-col justify-center items-center text-center bg-white">
              <Trophy size={64} className="text-blue-600 mb-6 drop-shadow-xl" />
              <h1 className="text-4xl font-black mb-1 italic tracking-tighter text-slate-900 uppercase">Herd <span className="text-blue-600">Arena</span></h1>
              <p className="text-slate-400 text-[10px] font-bold uppercase tracking-[0.3em] mb-12">Championship 2026</p>
              <div className="space-y-4 w-full max-w-xs">
-                <input type="text" placeholder="Full Legal Name" className="w-full px-6 py-4 rounded-2xl border-2 border-slate-50 bg-slate-50 outline-none font-bold text-lg focus:bg-white focus:border-blue-600 transition-all" value={bracketName} onChange={(e) => setBracketName(e.target.value)} />
+                <input type="text" placeholder="Full Legal Name" className="w-full px-6 py-4 rounded-2xl border-2 border-slate-50 bg-slate-50 outline-none font-bold text-lg focus:bg-white focus:border-blue-600 transition-all shadow-inner" value={bracketName} onChange={(e) => setBracketName(e.target.value)} />
                 <button onClick={handleJoin} className="w-full bg-blue-600 text-white p-5 rounded-2xl font-black shadow-xl hover:bg-blue-700 transition-all flex items-center justify-center gap-3 text-xs tracking-widest uppercase">ENTER ARENA <ArrowRight size={18}/></button>
              </div>
           </div>
@@ -175,12 +153,12 @@ export default function HerdArenaFinalMaster() {
       <main className="max-w-[1900px] mx-auto p-10 space-y-20">
         {view === 'bracket' ? (
           <>
-            <div className="bg-gradient-to-br from-blue-600 to-indigo-800 rounded-[50px] p-12 text-white shadow-2xl flex justify-between items-center">
-               <div>
+            <div className="bg-gradient-to-br from-blue-600 to-indigo-800 rounded-[50px] p-12 text-white shadow-2xl flex justify-between items-center relative overflow-hidden">
+               <div className="relative z-10">
                   <h2 className="text-5xl font-black italic tracking-tighter mb-2 underline decoration-blue-300 decoration-4 underline-offset-8 uppercase">Good Luck, {bracketName}!</h2>
                   <p className="text-blue-100 font-medium italic">8 best 3rd-place teams automatically chosen by FIFA Rank.</p>
                </div>
-               <div className="bg-white/20 px-8 py-3 rounded-full font-black text-[10px] uppercase tracking-[0.2em] border border-white/30">Predicting LIVE</div>
+               <div className="bg-white/20 px-8 py-3 rounded-full font-black text-xs uppercase tracking-widest border border-white/30 relative z-10">Predicting LIVE</div>
             </div>
 
             {/* 1. GROUPS */}
@@ -193,14 +171,14 @@ export default function HerdArenaFinalMaster() {
                         <div key={t.id} className="flex items-center justify-between">
                           <div className="flex flex-col">
                              <div className="flex items-center gap-3">
-                                <img src={`https://flagcdn.com/w40/${t.c}.png`} className="w-5 h-3.5 object-cover rounded shadow-sm" alt=""/> 
+                                <img src={`https://flagcdn.com/w40/${t.c}.png`} className="w-5 h-3.5 object-cover rounded shadow-sm border border-slate-100" alt=""/> 
                                 <span className="text-sm font-bold">{t.n}</span>
                              </div>
                              <span className="text-[8px] font-black text-slate-300 mt-1 uppercase tracking-widest">{t.ch}% chance to advance</span>
                           </div>
                           <div className="flex gap-1">
                             {[1, 2, 3].map(r => (
-                              <button key={r} onClick={() => setStandings((p: any) => ({ ...p, [id]: { ...p[id], [r]: t.id } }))} className={`w-7 h-7 text-[10px] font-black rounded-lg transition ${standings[id]?.[r] === t.id ? 'bg-blue-600 text-white shadow-md' : 'bg-slate-100 text-slate-400'}`}>{r}</button>
+                              <button key={r} onClick={() => setStandings((p: any) => ({ ...p, [id]: { ...p[id], [r]: t.id } }))} className={`w-7 h-7 text-[10px] font-black rounded-lg transition ${standings[id]?.[r] === t.id ? 'bg-blue-600 text-white shadow-md shadow-blue-100' : 'bg-slate-100 text-slate-400'}`}>{r}</button>
                             ))}
                           </div>
                         </div>
@@ -259,7 +237,7 @@ export default function HerdArenaFinalMaster() {
             </section>
 
             {/* 4. PLAYER HONORS */}
-            <section className="bg-blue-600 rounded-[4rem] p-12 text-white shadow-2xl">
+            <section className="bg-indigo-600 rounded-[4rem] p-12 text-white shadow-2xl">
                 <h2 className="text-3xl font-black italic tracking-tighter mb-10 flex items-center gap-4 uppercase tracking-tighter"><Star className="text-yellow-400 fill-yellow-400"/> Player Honors (+5 pts each)</h2>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
                    {[
@@ -267,24 +245,23 @@ export default function HerdArenaFinalMaster() {
                    ].map(a => (
                      <div key={a.k} className="bg-white/10 p-8 rounded-[2.5rem] border border-white/20">
                         <label className="text-[10px] font-black uppercase text-blue-100 tracking-widest block mb-4 italic">{a.l}</label>
-                        <input type="text" className="w-full bg-transparent border-b-2 border-white/30 outline-none p-2 font-black text-xl placeholder:text-white/20 focus:border-white transition-all uppercase" placeholder="Full Player Name..." value={(awards as any)[a.k]} onChange={(e) => setAwards(p => ({ ...p, [a.k]: e.target.value }))} />
+                        <input type="text" className="w-full bg-transparent border-b-2 border-white/30 outline-none p-2 font-black text-xl placeholder:text-white/20 focus:border-white transition-all uppercase" placeholder="Player Name..." value={(awards as any)[a.k]} onChange={(e) => setAwards(p => ({ ...p, [a.k]: e.target.value }))} />
                      </div>
                    ))}
                 </div>
             </section>
           </>
         ) : (
-          <div className="max-w-2xl mx-auto bg-white p-16 rounded-[60px] shadow-2xl border border-slate-50 text-center ring-8 ring-blue-50">
+          <div className="max-w-2xl mx-auto bg-white p-12 rounded-[60px] shadow-2xl border border-slate-50 text-center ring-8 ring-blue-50">
              <Trophy size={48} className="mx-auto text-blue-600 mb-6" />
-             <h2 className="text-3xl font-black mb-10 italic uppercase tracking-tighter text-slate-800 underline decoration-blue-500 decoration-8 underline-offset-8">Herd Leaderboard</h2>
+             <h2 className="text-3xl font-black mb-10 italic uppercase tracking-tighter text-slate-800 underline decoration-blue-500 decoration-8 underline-offset-8">Herd Standings</h2>
              <StandingsList />
           </div>
         )}
       </main>
 
-      <div className="fixed bottom-10 left-1/2 -translate-x-1/2 z-[60] flex flex-col items-center gap-4">
-         {isAdmin && <button onClick={recalculateScores} className="bg-emerald-600 text-white px-10 py-3 rounded-full font-black shadow-xl hover:scale-105 transition flex items-center gap-2 text-[10px] uppercase border-4 border-white tracking-widest"><Database size={16}/> Calculate Points</button>}
-         <button onClick={submitToDatabase} className="bg-slate-950 text-white px-24 py-6 rounded-[2.5rem] font-black shadow-2xl hover:scale-105 active:scale-95 transition-all flex items-center gap-4 tracking-[0.2em] uppercase text-xs">
+      <div className="fixed bottom-10 left-1/2 -translate-x-1/2 z-[60]">
+         <button onClick={submitToDatabase} className="bg-slate-900 text-white px-16 py-4 rounded-3xl font-black shadow-2xl hover:scale-105 active:scale-95 transition flex items-center gap-3">
             <Save size={20}/> {isAdmin ? 'Update Official' : 'Lock Prediction'}
          </button>
       </div>
@@ -301,7 +278,7 @@ function StandingsList() {
       {list.map((u, i) => (
         <div key={i} className="flex justify-between items-center p-8 bg-blue-50 rounded-[40px] border border-blue-100 shadow-sm transition-all hover:scale-[1.02]">
           <span className="font-bold flex items-center gap-8 text-2xl tracking-tight"><span className="text-blue-300 font-mono italic text-3xl">#{i+1}</span> {u.bracket_name}</span>
-          <span className="font-black text-blue-600 text-3xl">{u.points} <span className="text-[12px] uppercase text-slate-400 font-mono">PTS</span></span>
+          <span className="font-black text-blue-600 text-2xl">{u.points} <span className="text-[12px] uppercase text-slate-400 font-mono">PTS</span></span>
         </div>
       ))}
     </div>
@@ -323,7 +300,7 @@ function MatchBox({ t1, t2, winner, onPick }: any) {
   return (
     <div className="bg-white border border-slate-200 rounded-[1.8rem] overflow-hidden shadow-sm hover:shadow-md transition duration-300">
       {[t1, t2].map((t, i) => (
-        <button key={i} disabled={t?.placeholder} onClick={() => onPick(t)} className={`w-full text-left p-4 flex justify-between items-center border-b last:border-0 border-slate-50 transition-all ${winner?.id === t?.id ? 'bg-blue-600 text-white font-black' : 'hover:bg-blue-50'}`}>
+        <button key={i} disabled={t?.placeholder} onClick={() => onPick(t)} className={`w-full text-left p-4 flex justify-between items-center border-b last:border-0 border-slate-50 transition-all ${winner?.id === t?.id ? 'bg-blue-600 text-white font-black shadow-lg' : 'hover:bg-blue-50'}`}>
           <div className="flex items-center gap-3 overflow-hidden">
             {t?.c ? <img src={`https://flagcdn.com/w40/${t.c}.png`} className="w-5 h-3.5 object-cover rounded shadow-sm border border-slate-100" alt="" /> : <div className="w-5 h-3.5 bg-slate-50 rounded-sm" />}
             <span className={`text-[10px] font-black uppercase tracking-tight truncate ${t?.placeholder ? 'text-slate-300 italic font-medium' : 'text-slate-800'}`}>{t?.n || t?.placeholder}</span>
