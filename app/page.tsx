@@ -128,7 +128,7 @@ export default function HerdArenaFinalMaster() {
              <h1 className="text-3xl font-black mb-2 italic">Herd <span className="text-blue-600">Arena</span></h1>
              <p className="text-slate-400 font-medium mb-10">Sign in to join the office championship.</p>
              <div className="space-y-4">
-                <input type="text" placeholder="Full Legal Name" className="w-full p-4 rounded-2xl border-2 border-slate-50 bg-slate-50 outline-none font-bold text-lg focus:bg-white focus:border-blue-600 transition-all" value={bracketName} onChange={(e) => setBracketName(e.target.value)} />
+                <input type="text" placeholder="Full Name" className="w-full p-4 rounded-2xl border-2 border-slate-50 bg-slate-50 outline-none font-bold text-lg focus:bg-white focus:border-blue-600 transition-all" value={bracketName} onChange={(e) => setBracketName(e.target.value)} />
                 <button onClick={handleJoin} className="w-full bg-blue-600 text-white p-5 rounded-2xl font-black shadow-xl hover:bg-blue-700 transition-all flex items-center justify-center gap-2 tracking-widest text-xs">ENTER THE ARENA <ArrowRight size={18}/></button>
              </div>
           </div>
@@ -253,7 +253,8 @@ export default function HerdArenaFinalMaster() {
           </>
         ) : (
           <div className="max-w-2xl mx-auto bg-white p-12 rounded-[60px] shadow-2xl border border-slate-50 text-center ring-8 ring-blue-50">
-             <Trophy size={48} className="mx-auto text-blue-600 mb-6" />
+             <Trophy size={48} className="mx-auto text-
+             -600 mb-6" />
              <h2 className="text-3xl font-black mb-10 italic uppercase tracking-tighter text-slate-800">Herd Standings</h2>
              <LeaderboardList />
           </div>
