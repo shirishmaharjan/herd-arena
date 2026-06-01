@@ -200,7 +200,7 @@ export default function HerdArenaFinalMaster() {
                 <div className="flex justify-between items-center mb-8">
                    <div>
                       <h2 className="text-2xl font-black text-amber-900 uppercase italic tracking-tighter">8 Best 3rd-Place Teams</h2>
-                      <p className="text-xs text-amber-700 font-bold">Select exactly 8 teams from your 3rd place finishers to advance to the Round of 32.</p>
+                      <p className="text-xs text-amber-700 font-bold">Pick which 8 of your 12 third-place teams advance into the Round of 32. Each R32 third-place slot accepts teams from a specific 5-group set per FIFA's official bracket. Your selections are placed automatically into matching slots.</p>
                    </div>
                    <div className={`px-6 py-2 rounded-full font-black text-xs tracking-widest ${selectedThirdsIds.length === 8 ? 'bg-emerald-500 text-white' : 'bg-amber-200 text-amber-900'}`}>
                       {selectedThirdsIds.length}/8 SELECTED
@@ -276,13 +276,18 @@ export default function HerdArenaFinalMaster() {
               {/* Bonus Engagement Section: Scouting Report */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                   <div className="bg-white p-10 rounded-[3rem] border border-slate-200">
-                      <h3 className="text-lg font-black italic mb-6 flex items-center gap-2 text-blue-600"><Users /> Scouting Report: Players to Watch</h3>
+                      <h3 className="text-lg font-black italic mb-6 flex items-center gap-2 text-blue-600"><Users /> Players to Watch in World Cup 2026</h3>
                       <div className="grid grid-cols-2 gap-4">
                           {[
                             { n: 'Vinícius Júnior', t: 'Brazil', r: 'Ballon d\'Or favorite' },
                             { n: 'Kylian Mbappé', t: 'France', r: 'World Cup machine' },
                             { n: 'Jude Bellingham', t: 'England', r: 'Midfield maestro' },
-                            { n: 'Lamine Yamal', t: 'Spain', r: 'The 17-year old wonderkid' }
+                            { n: 'Lamine Yamal', t: 'Spain', r: 'The 17-year old wonderkid' },
+                            { n: 'Erling Haaland', t: 'Norway', r: 'The Striking Wizard' },
+                            { n: 'Lionel Messi', t: 'Argentina', r: 'The GOAT' },
+                            { n: 'Cristiano Ronaldo', t: 'Portugal', r: 'The Greatest of All Time' },
+                            { n: 'joao neves', t: 'Portugal', r: 'Midfield maestro' }
+                          
                           ].map((p, i) => (
                             <div key={i} className="p-4 bg-slate-50 rounded-2xl">
                                 <p className="font-black text-sm">{p.n}</p>
