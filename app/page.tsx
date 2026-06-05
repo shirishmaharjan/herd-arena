@@ -50,10 +50,9 @@ function PointsBreakdownCard({ stage }: { stage: 'group' | 'knockout' | 'final' 
       <h3 className="text-[10px] font-black text-blue-700 uppercase tracking-widest mb-4 flex items-center gap-2">
         <Target size={14} /> Points Available — Stage 1
       </h3>
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 gap-3">
         {[
           { label: 'Group Stage', calc: '12 groups × 3 positions × 2 pts', pts: 72, color: 'text-blue-700 bg-blue-100' },
-          { label: 'Round of 32', calc: '16 matches × 5 pts', pts: 80, color: 'text-indigo-700 bg-indigo-100' },
         ].map(({ label, calc, pts, color }) => (
           <div key={label} className="bg-white rounded-2xl p-4 border border-blue-100">
             <p className="font-black text-slate-800 text-sm">{label}</p>
@@ -64,7 +63,7 @@ function PointsBreakdownCard({ stage }: { stage: 'group' | 'knockout' | 'final' 
       </div>
       <div className="mt-4 flex items-center justify-between bg-white rounded-2xl px-5 py-3 border border-blue-200">
         <span className="text-xs font-black text-slate-600 uppercase tracking-wide">Stage 1 Maximum</span>
-        <span className="text-2xl font-black text-blue-700">152 pts</span>
+        <span className="text-2xl font-black text-blue-700">72 pts</span>
       </div>
     </div>
   );
@@ -76,6 +75,7 @@ function PointsBreakdownCard({ stage }: { stage: 'group' | 'knockout' | 'final' 
       </h3>
       <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
         {[
+          { label: 'Round of 32', calc: '16 matches × 5 pts', pts: 80, color: 'text-indigo-700 bg-indigo-100' },
           { label: 'Round of 16', calc: '8 matches × 5 pts', pts: 40, color: 'text-purple-700 bg-purple-100' },
           { label: 'Quarter-Finals', calc: '4 matches × 5 pts', pts: 20, color: 'text-fuchsia-700 bg-fuchsia-100' },
           { label: 'Semi-Finals', calc: '2 matches × 5 pts', pts: 10, color: 'text-pink-700 bg-pink-100' },
@@ -92,7 +92,7 @@ function PointsBreakdownCard({ stage }: { stage: 'group' | 'knockout' | 'final' 
       <div className="mt-4 grid grid-cols-2 gap-3">
         <div className="flex items-center justify-between bg-white rounded-2xl px-5 py-3 border border-purple-200">
           <span className="text-xs font-black text-slate-600 uppercase tracking-wide">Stage 2 Maximum</span>
-          <span className="text-2xl font-black text-purple-700">100 pts</span>
+          <span className="text-2xl font-black text-purple-700">180 pts</span>
         </div>
         <div className="flex items-center justify-between bg-purple-700 rounded-2xl px-5 py-3">
           <span className="text-xs font-black text-purple-200 uppercase tracking-wide">Cumulative Max</span>
@@ -1237,12 +1237,12 @@ export default function HerdArenaFinalMaster() {
                   <div className="bg-blue-600 p-3 rounded-2xl"><Target size={20} className="text-white" /></div>
                   <div>
                     <h2 className="text-xl font-black italic uppercase tracking-tighter">Stage 1 Standings</h2>
-                    <p className="text-slate-400 text-xs">Group Stage + 8 Best 3rd-Place Teams</p>
+                    <p className="text-slate-400 text-xs">Group Stage</p>
                   </div>
                 </div>
                 <div className="mb-1">
                   <span className="inline-flex items-center gap-1.5 bg-blue-50 border border-blue-100 text-blue-700 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wide">
-                    Max 152 pts available
+                    Max 72 pts available
                   </span>
                 </div>
                 <PointsBreakdownCard stage="group" />
@@ -1255,7 +1255,7 @@ export default function HerdArenaFinalMaster() {
                   <div className="bg-purple-600 p-3 rounded-2xl"><Zap size={20} className="text-white" /></div>
                   <div>
                     <h2 className="text-xl font-black italic uppercase tracking-tighter">Stage 2 Standings</h2>
-                    <p className="text-slate-400 text-xs">Knockout Bracket — R16 through Final</p>
+                    <p className="text-slate-400 text-xs">Knockout Bracket — R32 through Final</p>
                   </div>
                 </div>
                 <div className="mb-1">
