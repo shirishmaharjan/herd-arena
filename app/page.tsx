@@ -3,7 +3,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import {
   Trophy, Check, Award, Info, ShieldCheck, Save, ArrowRight,
   Database, Star, Search, Users, Lock, Unlock, ChevronUp, ChevronDown,
-  Zap, Target, Crown, Medal, RefreshCw, X, AlertCircle, CheckCircle2
+  Zap, Target, Crown, Medal, RefreshCw, X, AlertCircle, CheckCircle2, Download
 } from 'lucide-react';
 import { GROUPS_DATA, BRACKET_MAPPING } from '../constants/teams';
 import { supabase } from '../lib/supabase';
@@ -547,6 +547,80 @@ export default function HerdArenaFinalMaster() {
     const rank = parseInt(slot.substring(1));
     const tId = standings[gId]?.[rank];
     return tId ? getTeam(tId) : { placeholder: `${rank === 1 ? '1st' : rank === 2 ? '2nd' : '3rd'} Group ${gId}` };
+  };
+
+  // ── Download predictions as Excel ────────────────────────────────────────
+  const downloadExcel = () => {
+    // Build CSV content (works universally; Excel opens .csv natively)
+    const rows: string[][] = [];
+
+    // Header
+    rows.push(['HERD ARENA — World Cup 2026 Predictions']);
+    rows.push([`Participant: ${bracketName}`]);
+    rows.push([`Downloaded: ${new Date().toLocaleString()}`]);
+    rows.push([]);
+
+    // ── Group Stage ──
+    rows.push(['=== STAGE 1: GROUP STAGE ===']);
+    rows.push(['Group', '1st Place', '2nd Place', '3rd Place']);
+    Object.entries(GROUPS_DATA).forEach(([gid, g]: any) => {
+      const getTeamName = (rank: number) => {
+        const tId = standings[gid]?.[rank];
+        if (!tId) return '(not set)';
+        const t = g.teams.find((t: any) => t.id === tId);
+        return t?.n || tId;
+      };
+      rows.push([`Group ${gid}`, getTeamName(1), getTeamName(2), getTeamName(3)]);
+    });
+    rows.push([]);
+
+    // ── 8 Best Thirds ──
+    rows.push(['=== 8 BEST 3RD-PLACE TEAMS ===']);
+    rows.push(['#', 'Team']);
+    selectedThirdsIds.forEach((tId, i) => {
+      const t = Object.values(GROUPS_DATA).flatMap((g: any) => g.teams).find((t: any) => t.id === tId) as any;
+      rows.push([String(i + 1), t?.n || tId]);
+    });
+    if (selectedThirdsIds.length < 8) {
+      rows.push(['(incomplete — only ' + selectedThirdsIds.length + '/8 selected)']);
+    }
+    rows.push([]);
+
+    // ── Knockout Bracket ──
+    rows.push(['=== STAGE 2: KNOCKOUT BRACKET ===']);
+    rows.push(['Round', 'Match', 'Predicted Winner']);
+    const roundLabels: Record<string, string> = {
+      R32: 'Round of 32', R16: 'Round of 16', QF: 'Quarter-Final',
+      SF: 'Semi-Final', '3P': '3rd Place', F: 'Final',
+    };
+    BRACKET_MAPPING.forEach((m: any) => {
+      const winner = bracketWinners[m.id];
+      const mNum = parseInt(m.id.substring(1));
+      const round = mNum <= 16 ? 'R32' : mNum <= 24 ? 'R16' : mNum <= 28 ? 'QF' : mNum <= 30 ? 'SF' : mNum === 103 ? '3P' : 'F';
+      rows.push([roundLabels[round] || round, m.id.toUpperCase(), winner?.n || '(not picked)']);
+    });
+    rows.push([]);
+
+    // ── Player Awards ──
+    rows.push(['=== STAGE 3: PLAYER AWARDS ===']);
+    rows.push(['Award', 'Prediction']);
+    rows.push(['🏅 Golden Ball (MVP)', awards.ball || '(not set)']);
+    rows.push(['👟 Golden Boot', awards.boot || '(not set)']);
+    rows.push(['🧤 Golden Gloves', awards.gloves || '(not set)']);
+
+    // Serialize to CSV
+    const csv = rows.map(r =>
+      r.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(',')
+    ).join('\n');
+
+    // Trigger download
+    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `HerdArena_${bracketName.replace(/\s+/g, '_')}_Predictions.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   const handleJoin = () => {
@@ -1190,8 +1264,16 @@ export default function HerdArenaFinalMaster() {
                       <p className="font-black text-base text-emerald-800">✅ Predictions Submitted</p>
                       <p className="text-xs mt-0.5 text-emerald-600">Your full bracket & player picks are locked in. Good luck! 🏆</p>
                     </div>
-                    <div className="flex-shrink-0 flex items-center gap-2 px-8 py-4 rounded-[1.5rem] font-black text-xs uppercase tracking-widest bg-emerald-600 text-white shadow-lg">
-                      <CheckCircle2 size={16} /> Locked In
+                    <div className="flex-shrink-0 flex items-center gap-3">
+                      <button
+                        onClick={downloadExcel}
+                        className="flex items-center gap-2 px-6 py-4 rounded-[1.5rem] font-black text-xs uppercase tracking-widest bg-white border-2 border-emerald-300 text-emerald-700 hover:bg-emerald-100 transition-all hover:scale-105 active:scale-95 shadow-sm"
+                      >
+                        <Download size={15} /> Download Predictions
+                      </button>
+                      <div className="flex items-center gap-2 px-8 py-4 rounded-[1.5rem] font-black text-xs uppercase tracking-widest bg-emerald-600 text-white shadow-lg">
+                        <CheckCircle2 size={16} /> Locked In
+                      </div>
                     </div>
                   </div>
                 ) : (
