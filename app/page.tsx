@@ -1,5 +1,5 @@
 'use client';
-import React, { useState, useMemo, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Trophy, Check, Award, Info, ShieldCheck, Save, ArrowRight,
   Database, Star, Search, Users, Lock, Unlock, ChevronUp, ChevronDown,
@@ -43,6 +43,137 @@ function useToast() {
   return { toasts, remove, success: (m: string) => add(m, 'success'), error: (m: string) => add(m, 'error'), info: (m: string) => add(m, 'info') };
 }
 
+// ─── POINTS BREAKDOWN CARD ────────────────────────────────────────────────────
+function PointsBreakdownCard({ stage }: { stage: 'group' | 'knockout' | 'final' }) {
+  if (stage === 'group') return (
+    <div className="mb-8 bg-gradient-to-br from-blue-50 to-indigo-50 border-2 border-blue-100 rounded-[2rem] p-6">
+      <h3 className="text-[10px] font-black text-blue-700 uppercase tracking-widest mb-4 flex items-center gap-2">
+        <Target size={14} /> Points Available — Stage 1
+      </h3>
+      <div className="grid grid-cols-2 gap-3">
+        {[
+          { label: 'Group Stage', calc: '12 groups × 3 positions × 2 pts', pts: 72, color: 'text-blue-700 bg-blue-100' },
+          { label: 'Round of 32', calc: '16 matches × 5 pts', pts: 80, color: 'text-indigo-700 bg-indigo-100' },
+        ].map(({ label, calc, pts, color }) => (
+          <div key={label} className="bg-white rounded-2xl p-4 border border-blue-100">
+            <p className="font-black text-slate-800 text-sm">{label}</p>
+            <p className="text-slate-400 text-[10px] mt-0.5 leading-tight">{calc}</p>
+            <p className={`font-black text-xl mt-2 px-3 py-1 rounded-xl inline-block ${color}`}>{pts} pts</p>
+          </div>
+        ))}
+      </div>
+      <div className="mt-4 flex items-center justify-between bg-white rounded-2xl px-5 py-3 border border-blue-200">
+        <span className="text-xs font-black text-slate-600 uppercase tracking-wide">Stage 1 Maximum</span>
+        <span className="text-2xl font-black text-blue-700">152 pts</span>
+      </div>
+    </div>
+  );
+
+  if (stage === 'knockout') return (
+    <div className="mb-8 bg-gradient-to-br from-purple-50 to-pink-50 border-2 border-purple-100 rounded-[2rem] p-6">
+      <h3 className="text-[10px] font-black text-purple-700 uppercase tracking-widest mb-4 flex items-center gap-2">
+        <Trophy size={14} /> Points Available — Stage 2
+      </h3>
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+        {[
+          { label: 'Round of 16', calc: '8 matches × 5 pts', pts: 40, color: 'text-purple-700 bg-purple-100' },
+          { label: 'Quarter-Finals', calc: '4 matches × 5 pts', pts: 20, color: 'text-fuchsia-700 bg-fuchsia-100' },
+          { label: 'Semi-Finals', calc: '2 matches × 5 pts', pts: 10, color: 'text-pink-700 bg-pink-100' },
+          { label: '3rd Place', calc: '1 match × 10 pts', pts: 10, color: 'text-rose-700 bg-rose-100' },
+          { label: 'The Final', calc: '1 match × 20 pts', pts: 20, color: 'text-red-700 bg-red-100' },
+        ].map(({ label, calc, pts, color }) => (
+          <div key={label} className="bg-white rounded-2xl p-4 border border-purple-100">
+            <p className="font-black text-slate-800 text-sm">{label}</p>
+            <p className="text-slate-400 text-[10px] mt-0.5 leading-tight">{calc}</p>
+            <p className={`font-black text-xl mt-2 px-3 py-1 rounded-xl inline-block ${color}`}>{pts} pts</p>
+          </div>
+        ))}
+      </div>
+      <div className="mt-4 grid grid-cols-2 gap-3">
+        <div className="flex items-center justify-between bg-white rounded-2xl px-5 py-3 border border-purple-200">
+          <span className="text-xs font-black text-slate-600 uppercase tracking-wide">Stage 2 Maximum</span>
+          <span className="text-2xl font-black text-purple-700">100 pts</span>
+        </div>
+        <div className="flex items-center justify-between bg-purple-700 rounded-2xl px-5 py-3">
+          <span className="text-xs font-black text-purple-200 uppercase tracking-wide">Cumulative Max</span>
+          <span className="text-2xl font-black text-white">252 pts</span>
+        </div>
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="mb-8 bg-gradient-to-br from-amber-50 to-yellow-50 border-2 border-amber-200 rounded-[2rem] p-6">
+      <h3 className="text-[10px] font-black text-amber-700 uppercase tracking-widest mb-4 flex items-center gap-2">
+        <Star size={14} /> Points Available — Stage 3 (Final)
+      </h3>
+      <div className="grid grid-cols-3 gap-3">
+        {[
+          { label: '🏅 Golden Ball', pts: 5, color: 'text-amber-700 bg-amber-100' },
+          { label: '👟 Golden Boot', pts: 5, color: 'text-orange-700 bg-orange-100' },
+          { label: '🧤 Golden Gloves', pts: 5, color: 'text-yellow-700 bg-yellow-100' },
+        ].map(({ label, pts, color }) => (
+          <div key={label} className="bg-white rounded-2xl p-4 border border-amber-100 text-center">
+            <p className="font-black text-slate-800 text-sm">{label}</p>
+            <p className={`font-black text-2xl mt-2 px-3 py-1 rounded-xl inline-block ${color}`}>{pts} pts</p>
+          </div>
+        ))}
+      </div>
+      <div className="mt-4 grid grid-cols-2 gap-3">
+        <div className="flex items-center justify-between bg-white rounded-2xl px-5 py-3 border border-amber-200">
+          <span className="text-xs font-black text-slate-600 uppercase tracking-wide">Player Awards Max</span>
+          <span className="text-2xl font-black text-amber-700">15 pts</span>
+        </div>
+        <div className="flex items-center justify-between bg-slate-950 rounded-2xl px-5 py-3">
+          <span className="text-xs font-black text-slate-400 uppercase tracking-wide">🏆 Grand Total Max</span>
+          <span className="text-2xl font-black text-amber-400">267 pts</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── LEADERBOARD ROW ──────────────────────────────────────────────────────────
+function LeaderboardRow({ u, i, prev, maxPts, showDelta = true }: {
+  u: any; i: number; prev: string[]; maxPts: number; showDelta?: boolean;
+}) {
+  const prevRank = prev.indexOf(u.id);
+  const moved = prevRank !== -1 ? prevRank - i : 0;
+  const pct = Math.round(((u.points ?? 0) / maxPts) * 100);
+  const isFirst = i === 0;
+  const medals = ['🥇', '🥈', '🥉'];
+
+  return (
+    <div className={`relative overflow-hidden rounded-[1.8rem] border-2 transition-all ${isFirst ? 'bg-slate-950 border-slate-800' : 'bg-slate-50 border-slate-200'}`}>
+      <div
+        className={`absolute left-0 top-0 h-full rounded-[1.8rem] transition-all opacity-10 ${isFirst ? 'bg-blue-400' : 'bg-blue-600'}`}
+        style={{ width: `${pct}%` }}
+      />
+      <div className="relative z-10 flex justify-between items-center p-5">
+        <div className="flex items-center gap-4">
+          <span className={`font-mono font-black text-xl w-8 text-center ${isFirst ? 'text-blue-400' : 'text-slate-300'}`}>
+            {i < 3 ? medals[i] : `#${i + 1}`}
+          </span>
+          <div>
+            <p className={`font-black text-base ${isFirst ? 'text-white' : 'text-slate-800'}`}>{u.bracket_name}</p>
+            <p className={`text-[10px] ${isFirst ? 'text-slate-500' : 'text-slate-400'}`}>
+              Submitted {new Date(u.created_at).toLocaleDateString()}
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center gap-3">
+          {showDelta && moved > 0 && <span className="text-emerald-500 text-xs font-black flex items-center"><ChevronUp size={14} />+{moved}</span>}
+          {showDelta && moved < 0 && <span className="text-red-400 text-xs font-black flex items-center"><ChevronDown size={14} />{moved}</span>}
+          <div className="text-right">
+            <p className={`font-black text-2xl ${isFirst ? 'text-white' : 'text-blue-600'}`}>{u.points ?? 0}</p>
+            <p className={`text-[9px] uppercase font-bold ${isFirst ? 'text-slate-500' : 'text-slate-400'}`}>pts</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── ADMIN PANEL ──────────────────────────────────────────────────────────────
 function AdminPanel({
   onClose, toast
@@ -81,6 +212,40 @@ function AdminPanel({
     }
   };
 
+  // ── Compute partial scores for staged leaderboard ──────────────────────────
+  const computePartialScores = (sub: any, off: any) => {
+    const u = sub.bracket_data || {};
+    const o = off.bracket_data || {};
+    let groupScore = 0;
+    let knockoutScore = 0;
+    let awardsScore = 0;
+
+    // Group stage (positions 1,2,3 per group)
+    Object.keys(o.standings || {}).forEach(gid =>
+      [1, 2, 3].forEach(r => {
+        if (u.standings?.[gid]?.[r] === o.standings[gid]?.[r]) groupScore += 2;
+      })
+    );
+
+    // Knockout scoring
+    Object.keys(o.bracketWinners || {}).forEach(mid => {
+      if (u.bracketWinners?.[mid]?.id === o.bracketWinners[mid]?.id) {
+        const m = parseInt(mid.substring(1));
+        if (m <= 102) knockoutScore += 5;
+        else if (m === 103) knockoutScore += 10;
+        else if (m === 104) knockoutScore += 20;
+      }
+    });
+
+    const safeMatch = (a?: string, b?: string) =>
+      a && b && a.trim().toLowerCase() === b.trim().toLowerCase();
+    if (safeMatch(sub.golden_ball, off.golden_ball)) awardsScore += 5;
+    if (safeMatch(sub.golden_boot, off.golden_boot)) awardsScore += 5;
+    if (safeMatch(sub.golden_gloves, off.golden_gloves)) awardsScore += 5;
+
+    return { groupScore, knockoutScore, awardsScore, total: groupScore + knockoutScore + awardsScore };
+  };
+
   const recalculate = async () => {
     setLoading(true);
     try {
@@ -96,36 +261,14 @@ function AdminPanel({
       if (!subs) { setLoading(false); return; }
 
       for (const sub of subs) {
-        let score = 0;
-        const u = sub.bracket_data || {};
-        const o = off.bracket_data || {};
+        const { groupScore, knockoutScore, awardsScore, total } = computePartialScores(sub, off);
 
-        // Group stage scoring
-        Object.keys(o.standings || {}).forEach(gid =>
-          [1, 2, 3].forEach(r => {
-            if (u.standings?.[gid]?.[r] === o.standings[gid]?.[r]) score += 2;
-          })
-        );
-
-        // Knockout scoring
-        Object.keys(o.bracketWinners || {}).forEach(mid => {
-          if (u.bracketWinners?.[mid]?.id === o.bracketWinners[mid]?.id) {
-            const m = parseInt(mid.substring(1));
-            if (m <= 102) score += 5;
-            else if (m === 103) score += 10;
-            else if (m === 104) score += 20;
-          }
-        });
-
-        // Awards scoring — safe lowercase compare
-        const safeMatch = (a?: string, b?: string) =>
-          a && b && a.trim().toLowerCase() === b.trim().toLowerCase();
-
-        if (safeMatch(sub.golden_ball, off.golden_ball)) score += 5;
-        if (safeMatch(sub.golden_boot, off.golden_boot)) score += 5;
-        if (safeMatch(sub.golden_gloves, off.golden_gloves)) score += 5;
-
-        await supabase.from('submissions').update({ points: score }).eq('id', sub.id);
+        await supabase.from('submissions').update({
+          points: total,
+          group_points: groupScore,
+          knockout_points: knockoutScore,
+          awards_points: awardsScore,
+        }).eq('id', sub.id);
       }
 
       setRecalcDone(true);
@@ -162,7 +305,6 @@ function AdminPanel({
   return (
     <div className="fixed inset-0 z-[200] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
       <div className="bg-slate-950 border border-slate-800 rounded-[2rem] w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col shadow-2xl">
-        {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-slate-800">
           <div className="flex items-center gap-3">
             <div className="bg-emerald-500 p-2 rounded-xl"><ShieldCheck size={20} className="text-white" /></div>
@@ -176,7 +318,6 @@ function AdminPanel({
           </button>
         </div>
 
-        {/* Tabs */}
         <div className="flex gap-2 p-4 border-b border-slate-800">
           {[
             { id: 'official', label: 'Official Results', icon: Crown },
@@ -193,7 +334,6 @@ function AdminPanel({
           ))}
         </div>
 
-        {/* Content */}
         <div className="flex-1 overflow-y-auto p-6">
           {tab === 'official' && (
             <div className="space-y-6">
@@ -275,8 +415,8 @@ function AdminPanel({
               <div>
                 <h3 className="text-white font-black text-xl mb-2">Recalculate All Scores</h3>
                 <p className="text-slate-400 text-sm max-w-sm">
-                  This will compare every submission against the official results and update points.
-                  Make sure official results are set first.
+                  This will compare every submission against the official results and update all score columns
+                  (group_points, knockout_points, awards_points, total points).
                 </p>
               </div>
               <button
@@ -344,7 +484,6 @@ export default function HerdArenaFinalMaster() {
 
   // Confetti on login page
   useEffect(() => {
-    if (isEntryComplete) return;
     const colors = ['#2563eb', '#7c3aed', '#f59e0b', '#10b981', '#ef4444'];
     const container = document.getElementById('confetti-container');
     if (!container) return;
@@ -363,7 +502,8 @@ export default function HerdArenaFinalMaster() {
       `;
       container.appendChild(dot);
     }
-  }, [isEntryComplete]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const getTeam = (id: string) =>
     Object.values(GROUPS_DATA).flatMap((g: any) => g.teams).find((t: any) => t.id === id);
@@ -423,7 +563,6 @@ export default function HerdArenaFinalMaster() {
   };
 
   const submitToDatabase = async () => {
-    if (isLocked && !isAdmin) { toast.error('Your prediction is already locked!'); return; }
     if (selectedThirdsIds.length < 8) {
       toast.error('Select exactly 8 best 3rd-place teams first!');
       return;
@@ -437,24 +576,21 @@ export default function HerdArenaFinalMaster() {
     try {
       const table = isAdmin ? 'official_results' : 'submissions';
 
-      // Build payload — only include columns that exist
       const payload: Record<string, any> = {
         bracket_name: isAdmin ? 'OFFICIAL' : bracketName,
         bracket_data: { standings, bracketWinners, thirds: selectedThirdsIds },
       };
 
-      // Only add award columns if they have values (avoids schema cache errors)
       if (awards.ball.trim()) payload.golden_ball = awards.ball.trim();
       if (awards.boot.trim()) payload.golden_boot = awards.boot.trim();
       if (awards.gloves.trim()) payload.golden_gloves = awards.gloves.trim();
 
       if (isAdmin) {
-        // Upsert official results
-        const { error } = await supabase.from(table).insert([payload]);
+        await supabase.from('official_results').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+        const { error } = await supabase.from('official_results').insert([payload]);
         if (error) throw error;
         toast.success('Official results saved!');
       } else {
-        // Check for existing submission
         const { data: existing } = await supabase
           .from('submissions')
           .select('id')
@@ -513,7 +649,6 @@ export default function HerdArenaFinalMaster() {
 
         <div className="min-h-screen bg-gradient-to-br from-slate-950 via-blue-950 to-slate-950 flex items-center justify-center p-4">
           <div className="absolute inset-0 overflow-hidden pointer-events-none">
-            {/* Background grid */}
             <div className="absolute inset-0 opacity-[0.03]"
               style={{ backgroundImage: 'linear-gradient(#fff 1px, transparent 1px), linear-gradient(90deg, #fff 1px, transparent 1px)', backgroundSize: '60px 60px' }}
             />
@@ -552,7 +687,27 @@ export default function HerdArenaFinalMaster() {
                     </div>
                   ))}
                 </div>
-                <div className="mt-10 p-4 bg-blue-600/10 border border-blue-600/20 rounded-2xl">
+                {/* Points summary */}
+                <div className="mt-8 p-4 bg-white/5 border border-white/10 rounded-2xl">
+                  <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-3">Maximum Points</p>
+                  <div className="space-y-1">
+                    {[
+                      ['Group Stage + R32', '152 pts'],
+                      ['R16 → Final', '100 pts'],
+                      ['Player Awards', '15 pts'],
+                    ].map(([l, v]) => (
+                      <div key={l} className="flex justify-between text-xs">
+                        <span className="text-slate-400">{l}</span>
+                        <span className="font-black text-white">{v}</span>
+                      </div>
+                    ))}
+                    <div className="border-t border-white/10 pt-2 flex justify-between text-sm">
+                      <span className="font-black text-blue-400">Grand Total</span>
+                      <span className="font-black text-amber-400">267 pts</span>
+                    </div>
+                  </div>
+                </div>
+                <div className="mt-4 p-4 bg-blue-600/10 border border-blue-600/20 rounded-2xl">
                   <p className="text-blue-300 text-xs font-bold">💡 Pro Tip: The Final winner alone is worth +20 pts — that single pick can flip the entire leaderboard!</p>
                 </div>
               </div>
@@ -575,7 +730,6 @@ export default function HerdArenaFinalMaster() {
                   <p className="text-slate-400 text-sm">Sign in to join the office championship and lock in your bracket.</p>
                 </div>
 
-                {/* Countdown */}
                 <div className="mb-6">
                   <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">⏱ Time Until Kickoff</p>
                   <div className="grid grid-cols-4 gap-2">
@@ -645,7 +799,6 @@ export default function HerdArenaFinalMaster() {
             </div>
           </div>
 
-          {/* Progress bar */}
           <div className="hidden md:flex items-center gap-3 flex-1 max-w-xs mx-8">
             <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden">
               <div className="h-full bg-blue-600 rounded-full transition-all" style={{ width: `${completionPct}%` }} />
@@ -760,9 +913,7 @@ export default function HerdArenaFinalMaster() {
                                         onClick={() => {
                                           setStandings(p => {
                                             const grp = { ...(p[id] || {}) };
-                                            // Remove this team from any existing slot
                                             Object.keys(grp).forEach(k => { if (grp[+k] === t.id) delete grp[+k]; });
-                                            // Remove whoever was at rank r
                                             if (grp[r]) delete grp[r];
                                             grp[r] = t.id;
                                             return { ...p, [id]: grp };
@@ -841,7 +992,6 @@ export default function HerdArenaFinalMaster() {
 
                   {/* Finals column */}
                   <div className="flex-shrink-0 pt-[450px] flex flex-col gap-32">
-                    {/* 3rd place */}
                     <div className="w-64 p-6 bg-amber-50 border-2 border-amber-200 rounded-[2rem] shadow-sm">
                       <h3 className="text-[10px] font-black text-amber-700 uppercase tracking-widest mb-4 text-center">🥉 3rd Place Match <span className="text-amber-400">(+10 pts)</span></h3>
                       <MatchBox
@@ -852,7 +1002,6 @@ export default function HerdArenaFinalMaster() {
                       />
                     </div>
 
-                    {/* Final */}
                     <div className="w-80 p-10 bg-white border-[6px] border-slate-950 rounded-[3rem] text-center shadow-2xl">
                       <div className="bg-slate-950 p-4 rounded-2xl mb-6 inline-block">
                         <Award size={40} className="text-amber-400" />
@@ -913,7 +1062,6 @@ export default function HerdArenaFinalMaster() {
                     ))}
                   </div>
 
-                  {/* Players to watch */}
                   <div className="mt-8 pt-8 border-t border-white/10">
                     <h3 className="text-sm font-black text-slate-300 uppercase tracking-widest mb-4 flex items-center gap-2"><Users size={14} /> Players to Watch</h3>
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -939,18 +1087,63 @@ export default function HerdArenaFinalMaster() {
               </section>
             </>
           ) : (
-            // LEADERBOARD
-            <div className="max-w-2xl mx-auto">
-              <div className="bg-white border border-slate-100 rounded-[3rem] p-10 shadow-xl">
-                <div className="flex items-center gap-3 mb-8">
-                  <div className="bg-slate-950 p-3 rounded-2xl"><Trophy size={22} className="text-white" /></div>
+            // ─── THREE-SECTION LEADERBOARD ──────────────────────────────────────
+            <div className="max-w-2xl mx-auto space-y-12">
+
+              {/* SECTION 1 — Group Stage + Round of 32 */}
+              <div className="bg-white border border-slate-100 rounded-[3rem] p-8 md:p-10 shadow-xl">
+                <div className="flex items-center gap-3 mb-2">
+                  <div className="bg-blue-600 p-3 rounded-2xl"><Target size={20} className="text-white" /></div>
                   <div>
-                    <h2 className="text-2xl font-black italic uppercase tracking-tighter">Herd Standings</h2>
-                    <p className="text-slate-400 text-xs">Updated after each scoring run</p>
+                    <h2 className="text-xl font-black italic uppercase tracking-tighter">Stage 1 Standings</h2>
+                    <p className="text-slate-400 text-xs">Group Stage + 8 Best 3rd-Place Teams</p>
                   </div>
                 </div>
-                <LeaderboardList />
+                <div className="mb-1">
+                  <span className="inline-flex items-center gap-1.5 bg-blue-50 border border-blue-100 text-blue-700 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wide">
+                    Max 152 pts available
+                  </span>
+                </div>
+                <PointsBreakdownCard stage="group" />
+                <LeaderboardSection scoreField="group_points" label="group stage" />
               </div>
+
+              {/* SECTION 2 — Knockout Bracket */}
+              <div className="bg-white border border-slate-100 rounded-[3rem] p-8 md:p-10 shadow-xl">
+                <div className="flex items-center gap-3 mb-2">
+                  <div className="bg-purple-600 p-3 rounded-2xl"><Zap size={20} className="text-white" /></div>
+                  <div>
+                    <h2 className="text-xl font-black italic uppercase tracking-tighter">Stage 2 Standings</h2>
+                    <p className="text-slate-400 text-xs">Knockout Bracket — R16 through Final</p>
+                  </div>
+                </div>
+                <div className="mb-1">
+                  <span className="inline-flex items-center gap-1.5 bg-purple-50 border border-purple-100 text-purple-700 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wide">
+                    Cumulative max 252 pts
+                  </span>
+                </div>
+                <PointsBreakdownCard stage="knockout" />
+                <LeaderboardSection scoreField="knockout_points" label="knockout stage" cumulative />
+              </div>
+
+              {/* SECTION 3 — Final with Player Honors */}
+              <div className="bg-white border border-slate-100 rounded-[3rem] p-8 md:p-10 shadow-xl">
+                <div className="flex items-center gap-3 mb-2">
+                  <div className="bg-amber-500 p-3 rounded-2xl"><Trophy size={20} className="text-white" /></div>
+                  <div>
+                    <h2 className="text-xl font-black italic uppercase tracking-tighter">🏆 Final Championship</h2>
+                    <p className="text-slate-400 text-xs">Player Honors + Complete Tournament Score</p>
+                  </div>
+                </div>
+                <div className="mb-1">
+                  <span className="inline-flex items-center gap-1.5 bg-amber-50 border border-amber-100 text-amber-700 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wide">
+                    Grand total max 267 pts
+                  </span>
+                </div>
+                <PointsBreakdownCard stage="final" />
+                <LeaderboardSection scoreField="points" label="tournament" isFinal />
+              </div>
+
             </div>
           )}
         </main>
@@ -980,8 +1173,21 @@ export default function HerdArenaFinalMaster() {
   );
 }
 
-// ─── LEADERBOARD ──────────────────────────────────────────────────────────────
-function LeaderboardList() {
+// ─── LEADERBOARD SECTION ──────────────────────────────────────────────────────
+// scoreField: which column to rank by for this section
+// cumulative: show group+knockout combined pts
+// isFinal: show final total pts with awards breakdown pill
+function LeaderboardSection({
+  scoreField,
+  label,
+  cumulative = false,
+  isFinal = false,
+}: {
+  scoreField: string;
+  label: string;
+  cumulative?: boolean;
+  isFinal?: boolean;
+}) {
   const [list, setList] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [prev, setPrev] = useState<string[]>([]);
@@ -989,38 +1195,58 @@ function LeaderboardList() {
   useEffect(() => {
     supabase
       .from('submissions')
-      .select('id, bracket_name, points, created_at')
+      .select('id, bracket_name, points, group_points, knockout_points, awards_points, created_at')
       .order('points', { ascending: false })
       .then(({ data }) => {
         if (!data) { setLoading(false); return; }
-        const saved: string[] = JSON.parse(localStorage.getItem('prev_lb_order') || '[]');
+        const storageKey = `prev_lb_${scoreField}`;
+        const saved: string[] = JSON.parse(localStorage.getItem(storageKey) || '[]');
         setPrev(saved);
-        localStorage.setItem('prev_lb_order', JSON.stringify(data.map((u: any) => u.id)));
-        setList(data);
+        localStorage.setItem(storageKey, JSON.stringify(data.map((u: any) => u.id)));
+
+        // Sort by the section-relevant field
+        const sorted = [...data].sort((a, b) => {
+          const aScore = cumulative
+            ? ((a.group_points ?? 0) + (a.knockout_points ?? 0))
+            : (a[scoreField] ?? 0);
+          const bScore = cumulative
+            ? ((b.group_points ?? 0) + (b.knockout_points ?? 0))
+            : (b[scoreField] ?? 0);
+          return bScore - aScore;
+        });
+
+        setList(sorted);
         setLoading(false);
       });
-  }, []);
+  }, [scoreField, cumulative]);
 
   if (loading) return (
-    <div className="text-center py-16 text-slate-400">
-      <RefreshCw size={24} className="animate-spin mx-auto mb-3" />
-      <p className="text-sm font-bold">Loading standings...</p>
+    <div className="text-center py-12 text-slate-400">
+      <RefreshCw size={20} className="animate-spin mx-auto mb-2" />
+      <p className="text-xs font-bold">Loading {label} standings...</p>
     </div>
   );
 
   if (list.length === 0) return (
-    <p className="text-slate-400 text-center py-12 italic text-sm">No submissions yet. Be the first!</p>
+    <p className="text-slate-400 text-center py-10 italic text-sm">No submissions yet. Be the first!</p>
   );
 
+  const getDisplayPts = (u: any) => {
+    if (isFinal) return u.points ?? 0;
+    if (cumulative) return (u.group_points ?? 0) + (u.knockout_points ?? 0);
+    return u[scoreField] ?? 0;
+  };
+
+  const maxPts = Math.max(...list.map(u => getDisplayPts(u)), 1);
   const medals = ['🥇', '🥈', '🥉'];
-  const maxPts = Math.max(...list.map(u => u.points ?? 0), 1);
 
   return (
     <div className="space-y-3">
       {list.map((u, i) => {
+        const pts = getDisplayPts(u);
         const prevRank = prev.indexOf(u.id);
         const moved = prevRank !== -1 ? prevRank - i : 0;
-        const pct = Math.round(((u.points ?? 0) / maxPts) * 100);
+        const pct = Math.round((pts / maxPts) * 100);
         const isFirst = i === 0;
 
         return (
@@ -1028,7 +1254,6 @@ function LeaderboardList() {
             key={u.id ?? i}
             className={`relative overflow-hidden rounded-[1.8rem] border-2 transition-all ${isFirst ? 'bg-slate-950 border-slate-800' : 'bg-slate-50 border-slate-200'}`}
           >
-            {/* Progress bar background */}
             <div
               className={`absolute left-0 top-0 h-full rounded-[1.8rem] transition-all opacity-10 ${isFirst ? 'bg-blue-400' : 'bg-blue-600'}`}
               style={{ width: `${pct}%` }}
@@ -1040,16 +1265,31 @@ function LeaderboardList() {
                 </span>
                 <div>
                   <p className={`font-black text-base ${isFirst ? 'text-white' : 'text-slate-800'}`}>{u.bracket_name}</p>
-                  <p className={`text-[10px] ${isFirst ? 'text-slate-500' : 'text-slate-400'}`}>
-                    Submitted {new Date(u.created_at).toLocaleDateString()}
-                  </p>
+                  <div className="flex items-center gap-2 mt-0.5">
+                    <p className={`text-[10px] ${isFirst ? 'text-slate-500' : 'text-slate-400'}`}>
+                      {new Date(u.created_at).toLocaleDateString()}
+                    </p>
+                    {isFinal && (
+                      <div className="flex items-center gap-1">
+                        {[
+                          { label: 'G', val: u.group_points ?? 0, color: 'bg-blue-100 text-blue-700' },
+                          { label: 'K', val: u.knockout_points ?? 0, color: 'bg-purple-100 text-purple-700' },
+                          { label: 'A', val: u.awards_points ?? 0, color: 'bg-amber-100 text-amber-700' },
+                        ].map(({ label, val, color }) => (
+                          <span key={label} className={`text-[8px] font-black px-1.5 py-0.5 rounded-md ${color}`}>
+                            {label}:{val}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
               <div className="flex items-center gap-3">
                 {moved > 0 && <span className="text-emerald-500 text-xs font-black flex items-center"><ChevronUp size={14} />+{moved}</span>}
                 {moved < 0 && <span className="text-red-400 text-xs font-black flex items-center"><ChevronDown size={14} />{moved}</span>}
                 <div className="text-right">
-                  <p className={`font-black text-2xl ${isFirst ? 'text-white' : 'text-blue-600'}`}>{u.points ?? 0}</p>
+                  <p className={`font-black text-2xl ${isFirst ? 'text-white' : 'text-blue-600'}`}>{pts}</p>
                   <p className={`text-[9px] uppercase font-bold ${isFirst ? 'text-slate-500' : 'text-slate-400'}`}>pts</p>
                 </div>
               </div>
