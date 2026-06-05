@@ -454,6 +454,9 @@ export default function HerdArenaFinalMaster() {
   const [awards, setAwards] = useState({ ball: '', boot: '', gloves: '' });
   const [countdown, setCountdown] = useState({ d: 0, h: 0, m: 0, s: 0 });
   const [isLocked, setIsLocked] = useState(false);
+  const [stage1Locked, setStage1Locked] = useState(false);
+  const [stage2Locked, setStage2Locked] = useState(false);
+  const [stage3Locked, setStage3Locked] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const toast = useToast();
 
@@ -463,6 +466,9 @@ export default function HerdArenaFinalMaster() {
     const savedLocked = localStorage.getItem('herd_locked');
     if (savedName) { setBracketName(savedName); setIsEntryComplete(true); }
     if (savedLocked === '1') setIsLocked(true);
+    if (localStorage.getItem('herd_stage1_locked') === '1') setStage1Locked(true);
+    if (localStorage.getItem('herd_stage2_locked') === '1') setStage2Locked(true);
+    if (localStorage.getItem('herd_stage3_locked') === '1') setStage3Locked(true);
   }, []);
 
   // Countdown timer
@@ -562,59 +568,107 @@ export default function HerdArenaFinalMaster() {
     }
   };
 
-  const submitToDatabase = async () => {
+  // ── Core upsert helper ────────────────────────────────────────────────────
+  const upsertSubmission = async (patch: Record<string, any>, successMsg: string) => {
+    const table = isAdmin ? 'official_results' : 'submissions';
+    const name = isAdmin ? 'OFFICIAL' : bracketName;
+
+    if (isAdmin) {
+      // Admin: always wipe + re-insert the whole record
+      const fullPayload = {
+        bracket_name: name,
+        bracket_data: { standings, bracketWinners, thirds: selectedThirdsIds },
+        golden_ball: awards.ball.trim() || null,
+        golden_boot: awards.boot.trim() || null,
+        golden_gloves: awards.gloves.trim() || null,
+        ...patch,
+      };
+      await supabase.from('official_results').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+      const { error } = await supabase.from('official_results').insert([fullPayload]);
+      if (error) throw error;
+    } else {
+      const { data: existing } = await supabase
+        .from('submissions')
+        .select('id')
+        .eq('bracket_name', name)
+        .maybeSingle();
+
+      if (existing) {
+        const { error } = await supabase.from('submissions').update(patch).eq('id', existing.id);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase.from('submissions').insert([{ bracket_name: name, ...patch }]);
+        if (error) throw error;
+      }
+    }
+    toast.success(successMsg);
+  };
+
+  // ── Stage 1: Groups + 8 Thirds ────────────────────────────────────────────
+  const submitStage1 = async () => {
+    if (!groupsComplete) {
+      toast.error('Fill in all 12 group standings first (positions 1, 2, 3).');
+      return;
+    }
     if (selectedThirdsIds.length < 8) {
       toast.error('Select exactly 8 best 3rd-place teams first!');
       return;
     }
-    if (!bracketWinners['m104']) {
-      toast.error('Pick your World Cup winner first!');
-      return;
-    }
-
     setSubmitting(true);
     try {
-      const table = isAdmin ? 'official_results' : 'submissions';
+      await upsertSubmission(
+        { bracket_data: { standings, bracketWinners, thirds: selectedThirdsIds } },
+        'Stage 1 saved — Groups & 3rd-place picks locked! ✅'
+      );
+      localStorage.setItem('herd_stage1_locked', '1');
+      setStage1Locked(true);
+    } catch (e: any) { toast.error(e?.message || 'Save failed.'); }
+    setSubmitting(false);
+  };
 
-      const payload: Record<string, any> = {
-        bracket_name: isAdmin ? 'OFFICIAL' : bracketName,
-        bracket_data: { standings, bracketWinners, thirds: selectedThirdsIds },
-      };
-
-      if (awards.ball.trim()) payload.golden_ball = awards.ball.trim();
-      if (awards.boot.trim()) payload.golden_boot = awards.boot.trim();
-      if (awards.gloves.trim()) payload.golden_gloves = awards.gloves.trim();
-
-      if (isAdmin) {
-        await supabase.from('official_results').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-        const { error } = await supabase.from('official_results').insert([payload]);
-        if (error) throw error;
-        toast.success('Official results saved!');
-      } else {
-        const { data: existing } = await supabase
-          .from('submissions')
-          .select('id')
-          .eq('bracket_name', bracketName)
-          .maybeSingle();
-
-        if (existing) {
-          const { error } = await supabase
-            .from('submissions')
-            .update(payload)
-            .eq('id', existing.id);
-          if (error) throw error;
-          toast.success('Prediction updated & locked! 🔒');
-        } else {
-          const { error } = await supabase.from('submissions').insert([payload]);
-          if (error) throw error;
-          toast.success('Prediction locked into the Arena! 🏆');
-        }
-        localStorage.setItem('herd_locked', '1');
-        setIsLocked(true);
-      }
-    } catch (e: any) {
-      toast.error(e?.message || 'Submission failed. Try again.');
+  // ── Stage 2: Knockout Bracket ─────────────────────────────────────────────
+  const submitStage2 = async () => {
+    if (!bracketWinners['m104']) {
+      toast.error('Pick your World Cup Final winner first!');
+      return;
     }
+    setSubmitting(true);
+    try {
+      await upsertSubmission(
+        { bracket_data: { standings, bracketWinners, thirds: selectedThirdsIds } },
+        'Stage 2 saved — Knockout bracket locked! ⚡'
+      );
+      localStorage.setItem('herd_stage2_locked', '1');
+      setStage2Locked(true);
+    } catch (e: any) { toast.error(e?.message || 'Save failed.'); }
+    setSubmitting(false);
+  };
+
+  // ── Stage 3: Player Awards ─────────────────────────────────────────────────
+  const submitStage3 = async () => {
+    if (!awards.ball.trim() && !awards.boot.trim() && !awards.gloves.trim()) {
+      toast.error('Enter at least one player award pick.');
+      return;
+    }
+    setSubmitting(true);
+    try {
+      const patch: Record<string, any> = {};
+      if (awards.ball.trim()) patch.golden_ball = awards.ball.trim();
+      if (awards.boot.trim()) patch.golden_boot = awards.boot.trim();
+      if (awards.gloves.trim()) patch.golden_gloves = awards.gloves.trim();
+      await upsertSubmission(patch, 'Stage 3 saved — Player honors locked! 🏅');
+      localStorage.setItem('herd_stage3_locked', '1');
+      setStage3Locked(true);
+    } catch (e: any) { toast.error(e?.message || 'Save failed.'); }
+    setSubmitting(false);
+  };
+
+  // ── Admin: save everything at once ────────────────────────────────────────
+  const submitToDatabase = async () => {
+    setSubmitting(true);
+    try {
+      await upsertSubmission({}, 'Official results saved! 🛡️');
+    } catch (e: any) { toast.error(e?.message || 'Save failed.'); }
     setSubmitting(false);
   };
 
@@ -978,6 +1032,29 @@ export default function HerdArenaFinalMaster() {
                 </div>
               </section>
 
+              {/* ── STAGE 1 SAVE BUTTON ── */}
+              {!isAdmin && (
+                <div className={`rounded-[2rem] border-2 p-6 flex flex-col sm:flex-row items-center justify-between gap-4 transition-all ${stage1Locked ? 'bg-emerald-50 border-emerald-200' : 'bg-blue-50 border-blue-200'}`}>
+                  <div>
+                    <p className={`font-black text-base ${stage1Locked ? 'text-emerald-800' : 'text-blue-800'}`}>
+                      {stage1Locked ? '✅ Stage 1 Saved' : '💾 Save Stage 1'}
+                    </p>
+                    <p className={`text-xs mt-0.5 ${stage1Locked ? 'text-emerald-600' : 'text-blue-600'}`}>
+                      {stage1Locked
+                        ? 'Groups & 3rd-place picks are locked in. You can still update them.'
+                        : 'Lock in your group standings & 8 best 3rd-place teams. You can update later.'}
+                    </p>
+                  </div>
+                  <button
+                    onClick={submitStage1}
+                    disabled={submitting || !groupsComplete || selectedThirdsIds.length < 8}
+                    className={`flex-shrink-0 flex items-center gap-2 px-8 py-4 rounded-[1.5rem] font-black text-xs uppercase tracking-widest transition-all hover:scale-105 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed shadow-lg ${stage1Locked ? 'bg-emerald-600 text-white hover:bg-emerald-500' : 'bg-blue-600 text-white hover:bg-blue-500'}`}
+                  >
+                    {submitting ? <RefreshCw size={16} className="animate-spin" /> : stage1Locked ? <><CheckCircle2 size={16} /> Update Groups</> : <><Save size={16} /> Save Groups & Thirds</>}
+                  </button>
+                </div>
+              )}
+
               {/* BRACKET */}
               <section>
                 <h2 className="text-2xl font-black italic tracking-tighter mb-6 flex items-center gap-3">
@@ -1026,6 +1103,29 @@ export default function HerdArenaFinalMaster() {
                   </div>
                 </div>
               </section>
+
+              {/* ── STAGE 2 SAVE BUTTON ── */}
+              {!isAdmin && (
+                <div className={`rounded-[2rem] border-2 p-6 flex flex-col sm:flex-row items-center justify-between gap-4 transition-all ${stage2Locked ? 'bg-emerald-50 border-emerald-200' : 'bg-indigo-50 border-indigo-200'}`}>
+                  <div>
+                    <p className={`font-black text-base ${stage2Locked ? 'text-emerald-800' : 'text-indigo-800'}`}>
+                      {stage2Locked ? '✅ Stage 2 Saved' : '💾 Save Stage 2'}
+                    </p>
+                    <p className={`text-xs mt-0.5 ${stage2Locked ? 'text-emerald-600' : 'text-indigo-600'}`}>
+                      {stage2Locked
+                        ? 'Knockout bracket locked in. You can still update it.'
+                        : 'Lock in your full knockout bracket including the Final winner.'}
+                    </p>
+                  </div>
+                  <button
+                    onClick={submitStage2}
+                    disabled={submitting || !bracketWinners['m104']}
+                    className={`flex-shrink-0 flex items-center gap-2 px-8 py-4 rounded-[1.5rem] font-black text-xs uppercase tracking-widest transition-all hover:scale-105 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed shadow-lg ${stage2Locked ? 'bg-emerald-600 text-white hover:bg-emerald-500' : 'bg-indigo-600 text-white hover:bg-indigo-500'}`}
+                  >
+                    {submitting ? <RefreshCw size={16} className="animate-spin" /> : stage2Locked ? <><CheckCircle2 size={16} /> Update Bracket</> : <><Save size={16} /> Save Knockout Bracket</>}
+                  </button>
+                </div>
+              )}
 
               {/* PLAYER AWARDS */}
               <section>
@@ -1085,6 +1185,29 @@ export default function HerdArenaFinalMaster() {
                   </div>
                 </div>
               </section>
+
+              {/* ── STAGE 3 SAVE BUTTON ── */}
+              {!isAdmin && (
+                <div className={`rounded-[2rem] border-2 p-6 flex flex-col sm:flex-row items-center justify-between gap-4 transition-all ${stage3Locked ? 'bg-emerald-50 border-emerald-200' : 'bg-amber-50 border-amber-200'}`}>
+                  <div>
+                    <p className={`font-black text-base ${stage3Locked ? 'text-emerald-800' : 'text-amber-800'}`}>
+                      {stage3Locked ? '✅ Stage 3 Saved' : '💾 Save Player Honors'}
+                    </p>
+                    <p className={`text-xs mt-0.5 ${stage3Locked ? 'text-emerald-600' : 'text-amber-600'}`}>
+                      {stage3Locked
+                        ? 'Player award picks are locked in. You can still update them.'
+                        : 'Lock in your Golden Ball, Boot & Gloves picks. +5 pts each.'}
+                    </p>
+                  </div>
+                  <button
+                    onClick={submitStage3}
+                    disabled={submitting || (!awards.ball.trim() && !awards.boot.trim() && !awards.gloves.trim())}
+                    className={`flex-shrink-0 flex items-center gap-2 px-8 py-4 rounded-[1.5rem] font-black text-xs uppercase tracking-widest transition-all hover:scale-105 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed shadow-lg ${stage3Locked ? 'bg-emerald-600 text-white hover:bg-emerald-500' : 'bg-amber-500 text-white hover:bg-amber-400'}`}
+                  >
+                    {submitting ? <RefreshCw size={16} className="animate-spin" /> : stage3Locked ? <><CheckCircle2 size={16} /> Update Awards</> : <><Save size={16} /> Save Player Picks</>}
+                  </button>
+                </div>
+              )}
             </>
           ) : (
             // ─── THREE-SECTION LEADERBOARD ──────────────────────────────────────
@@ -1148,26 +1271,18 @@ export default function HerdArenaFinalMaster() {
           )}
         </main>
 
-        {/* Floating CTA */}
-        <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-[60] flex flex-col items-center gap-3">
-          {isLocked && !isAdmin && (
-            <div className="bg-amber-500 text-white px-6 py-2 rounded-full text-[10px] font-black uppercase tracking-widest flex items-center gap-2 shadow-lg">
-              <Lock size={12} /> Prediction Locked — Updates Still Allowed
-            </div>
-          )}
-          <button
-            onClick={submitToDatabase}
-            disabled={submitting}
-            className={`text-white px-16 py-5 rounded-[2rem] font-black shadow-2xl hover:scale-105 active:scale-95 transition-all flex items-center gap-3 tracking-widest uppercase text-xs disabled:opacity-60 ${isAdmin ? 'bg-emerald-600 hover:bg-emerald-500' : 'bg-slate-950 hover:bg-blue-600'}`}
-          >
-            {submitting
-              ? <><RefreshCw size={18} className="animate-spin" /> Saving...</>
-              : isAdmin
-                ? <><Database size={18} /> Set Official Results</>
-                : <><Save size={18} /> {isLocked ? 'Update Prediction' : 'Lock My Prediction'}</>
-            }
-          </button>
-        </div>
+        {/* Admin floating CTA only */}
+        {isAdmin && (
+          <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-[60]">
+            <button
+              onClick={submitToDatabase}
+              disabled={submitting}
+              className="bg-emerald-600 hover:bg-emerald-500 text-white px-14 py-5 rounded-[2rem] font-black shadow-2xl hover:scale-105 active:scale-95 transition-all flex items-center gap-3 tracking-widest uppercase text-xs disabled:opacity-60"
+            >
+              {submitting ? <><RefreshCw size={18} className="animate-spin" /> Saving...</> : <><Database size={18} /> Set Official Results</>}
+            </button>
+          </div>
+        )}
       </div>
     </>
   );
