@@ -663,6 +663,32 @@ export default function HerdArenaFinalMaster() {
     setSubmitting(false);
   };
 
+  // ── Unified single-step save for colleagues (no update after) ───────────
+  const submitAll = async () => {
+    if (!groupsComplete) { toast.error('Fill in all 12 group standings first.'); return; }
+    if (selectedThirdsIds.length < 8) { toast.error('Select exactly 8 best 3rd-place teams first!'); return; }
+    if (!bracketWinners['m104']) { toast.error('Pick your World Cup Final winner first!'); return; }
+    setSubmitting(true);
+    try {
+      const patch: Record<string, any> = {
+        bracket_data: { standings, bracketWinners, thirds: selectedThirdsIds },
+      };
+      if (awards.ball.trim()) patch.golden_ball = awards.ball.trim();
+      if (awards.boot.trim()) patch.golden_boot = awards.boot.trim();
+      if (awards.gloves.trim()) patch.golden_gloves = awards.gloves.trim();
+      await upsertSubmission(patch, 'Predictions submitted & locked! 🏆');
+      localStorage.setItem('herd_locked', '1');
+      localStorage.setItem('herd_stage1_locked', '1');
+      localStorage.setItem('herd_stage2_locked', '1');
+      localStorage.setItem('herd_stage3_locked', '1');
+      setIsLocked(true);
+      setStage1Locked(true);
+      setStage2Locked(true);
+      setStage3Locked(true);
+    } catch (e: any) { toast.error(e?.message || 'Save failed.'); }
+    setSubmitting(false);
+  };
+
   // ── Admin: save everything at once ────────────────────────────────────────
   const submitToDatabase = async () => {
     setSubmitting(true);
@@ -965,6 +991,7 @@ export default function HerdArenaFinalMaster() {
                                       <button
                                         key={r}
                                         onClick={() => {
+                                          if (isLocked && !isAdmin) return;
                                           setStandings(p => {
                                             const grp = { ...(p[id] || {}) };
                                             Object.keys(grp).forEach(k => { if (grp[+k] === t.id) delete grp[+k]; });
@@ -973,7 +1000,7 @@ export default function HerdArenaFinalMaster() {
                                             return { ...p, [id]: grp };
                                           });
                                         }}
-                                        className={`w-7 h-7 text-[9px] font-black rounded-lg transition-all ${active ? 'bg-blue-600 text-white shadow-md scale-110' : takenByOther ? 'bg-slate-100 text-slate-300 cursor-pointer hover:bg-blue-50' : 'bg-slate-100 text-slate-500 hover:bg-blue-50 hover:text-blue-600'}`}
+                                        className={`w-7 h-7 text-[9px] font-black rounded-lg transition-all ${active ? 'bg-blue-600 text-white shadow-md scale-110' : takenByOther ? 'bg-slate-100 text-slate-300 cursor-pointer hover:bg-blue-50' : 'bg-slate-100 text-slate-500 hover:bg-blue-50 hover:text-blue-600'} ${isLocked && !isAdmin ? 'cursor-not-allowed opacity-60' : ''}`}
                                       >
                                         {r}
                                       </button>
@@ -1017,7 +1044,7 @@ export default function HerdArenaFinalMaster() {
                     return (
                       <button
                         key={t.id}
-                        onClick={() => toggleThirdPlaceSelection(t.id)}
+                        onClick={() => { if (isLocked && !isAdmin) return; toggleThirdPlaceSelection(t.id); }}
                         className={`p-5 rounded-[1.8rem] border-2 transition-all text-center flex flex-col items-center gap-2 relative overflow-hidden min-h-[120px] justify-center ${isSelected ? 'bg-blue-600 border-blue-700 shadow-xl scale-105 ring-4 ring-blue-200' : 'bg-white border-amber-100 hover:border-blue-300 hover:shadow-md'}`}
                       >
                         <p className={`text-[7px] font-black uppercase tracking-widest ${isSelected ? 'text-blue-200' : 'text-amber-500'}`}>Group {gid}</p>
@@ -1032,28 +1059,7 @@ export default function HerdArenaFinalMaster() {
                 </div>
               </section>
 
-              {/* ── STAGE 1 SAVE BUTTON ── */}
-              {!isAdmin && (
-                <div className={`rounded-[2rem] border-2 p-6 flex flex-col sm:flex-row items-center justify-between gap-4 transition-all ${stage1Locked ? 'bg-emerald-50 border-emerald-200' : 'bg-blue-50 border-blue-200'}`}>
-                  <div>
-                    <p className={`font-black text-base ${stage1Locked ? 'text-emerald-800' : 'text-blue-800'}`}>
-                      {stage1Locked ? '✅ Stage 1 Saved' : '💾 Save Stage 1'}
-                    </p>
-                    <p className={`text-xs mt-0.5 ${stage1Locked ? 'text-emerald-600' : 'text-blue-600'}`}>
-                      {stage1Locked
-                        ? 'Groups & 3rd-place picks are locked in. You can still update them.'
-                        : 'Lock in your group standings & 8 best 3rd-place teams. You can update later.'}
-                    </p>
-                  </div>
-                  <button
-                    onClick={submitStage1}
-                    disabled={submitting || !groupsComplete || selectedThirdsIds.length < 8}
-                    className={`flex-shrink-0 flex items-center gap-2 px-8 py-4 rounded-[1.5rem] font-black text-xs uppercase tracking-widest transition-all hover:scale-105 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed shadow-lg ${stage1Locked ? 'bg-emerald-600 text-white hover:bg-emerald-500' : 'bg-blue-600 text-white hover:bg-blue-500'}`}
-                  >
-                    {submitting ? <RefreshCw size={16} className="animate-spin" /> : stage1Locked ? <><CheckCircle2 size={16} /> Update Groups</> : <><Save size={16} /> Save Groups & Thirds</>}
-                  </button>
-                </div>
-              )}
+
 
               {/* BRACKET */}
               <section>
@@ -1077,6 +1083,15 @@ export default function HerdArenaFinalMaster() {
                         winner={bracketWinners['m103']}
                         onPick={(w: any) => setBracketWinners((p: any) => ({ ...p, m103: w }))}
                       />
+                      <div className="mt-4 border-t border-amber-200 pt-4">
+                        <p className="text-[9px] font-black text-amber-600 uppercase tracking-widest mb-2 text-center">Third Place Winner</p>
+                        <div className="text-lg font-black text-amber-700 italic uppercase truncate text-center">
+                          {bracketWinners['m103']?.n || '???'}
+                        </div>
+                        {bracketWinners['m103']?.c && (
+                          <img src={`https://flagcdn.com/w80/${bracketWinners['m103'].c}.png`} className="w-10 mx-auto mt-2 shadow-md rounded" alt="" />
+                        )}
+                      </div>
                     </div>
 
                     <div className="w-80 p-10 bg-white border-[6px] border-slate-950 rounded-[3rem] text-center shadow-2xl">
@@ -1104,28 +1119,7 @@ export default function HerdArenaFinalMaster() {
                 </div>
               </section>
 
-              {/* ── STAGE 2 SAVE BUTTON ── */}
-              {!isAdmin && (
-                <div className={`rounded-[2rem] border-2 p-6 flex flex-col sm:flex-row items-center justify-between gap-4 transition-all ${stage2Locked ? 'bg-emerald-50 border-emerald-200' : 'bg-indigo-50 border-indigo-200'}`}>
-                  <div>
-                    <p className={`font-black text-base ${stage2Locked ? 'text-emerald-800' : 'text-indigo-800'}`}>
-                      {stage2Locked ? '✅ Stage 2 Saved' : '💾 Save Stage 2'}
-                    </p>
-                    <p className={`text-xs mt-0.5 ${stage2Locked ? 'text-emerald-600' : 'text-indigo-600'}`}>
-                      {stage2Locked
-                        ? 'Knockout bracket locked in. You can still update it.'
-                        : 'Lock in your full knockout bracket including the Final winner.'}
-                    </p>
-                  </div>
-                  <button
-                    onClick={submitStage2}
-                    disabled={submitting || !bracketWinners['m104']}
-                    className={`flex-shrink-0 flex items-center gap-2 px-8 py-4 rounded-[1.5rem] font-black text-xs uppercase tracking-widest transition-all hover:scale-105 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed shadow-lg ${stage2Locked ? 'bg-emerald-600 text-white hover:bg-emerald-500' : 'bg-indigo-600 text-white hover:bg-indigo-500'}`}
-                  >
-                    {submitting ? <RefreshCw size={16} className="animate-spin" /> : stage2Locked ? <><CheckCircle2 size={16} /> Update Bracket</> : <><Save size={16} /> Save Knockout Bracket</>}
-                  </button>
-                </div>
-              )}
+
 
               {/* PLAYER AWARDS */}
               <section>
@@ -1142,17 +1136,19 @@ export default function HerdArenaFinalMaster() {
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                     {[
-                      { l: '🏅 Golden Ball (MVP)', k: 'ball', placeholder: 'e.g. Vinícius Júnior' },
-                      { l: '👟 Golden Boot', k: 'boot', placeholder: 'e.g. Kylian Mbappé' },
-                      { l: '🧤 Golden Gloves', k: 'gloves', placeholder: 'e.g. Emiliano Martínez' },
+                      { l: '🏅 Golden Ball (MVP)', k: 'ball', placeholder: 'e.g. Vinícius Júnior', note: 'Awarded to the best overall player of the tournament — voted by media & coaches.' },
+                      { l: '👟 Golden Boot', k: 'boot', placeholder: 'e.g. Kylian Mbappé', note: 'Awarded to the top scorer. Assists break ties, then minutes played.' },
+                      { l: '🧤 Golden Gloves', k: 'gloves', placeholder: 'e.g. Emiliano Martínez', note: 'Awarded to the best goalkeeper — judged on saves, clean sheets & impact.' },
                     ].map(a => (
                       <div key={a.k} className="bg-white/5 p-6 rounded-[2rem] border border-white/10">
-                        <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest block mb-4">{a.l}</label>
+                        <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest block mb-1">{a.l}</label>
+                        <p className="text-[9px] text-slate-500 mb-4 leading-relaxed">{a.note}</p>
                         <input
                           type="text"
-                          className="w-full bg-transparent border-b-2 border-white/20 outline-none p-2 font-bold text-lg placeholder:text-white/15 focus:border-blue-400 transition-all text-white"
+                          className="w-full bg-transparent border-b-2 border-white/20 outline-none p-2 font-bold text-lg placeholder:text-white/15 focus:border-blue-400 transition-all text-white disabled:opacity-50 disabled:cursor-not-allowed"
                           placeholder={a.placeholder}
                           value={(awards as any)[a.k]}
+                          disabled={isLocked && !isAdmin}
                           onChange={e => setAwards(p => ({ ...p, [a.k]: e.target.value }))}
                         />
                         {(awards as any)[a.k] && (
@@ -1186,27 +1182,49 @@ export default function HerdArenaFinalMaster() {
                 </div>
               </section>
 
-              {/* ── STAGE 3 SAVE BUTTON ── */}
+              {/* ── SINGLE UNIFIED SAVE BUTTON ── */}
               {!isAdmin && (
-                <div className={`rounded-[2rem] border-2 p-6 flex flex-col sm:flex-row items-center justify-between gap-4 transition-all ${stage3Locked ? 'bg-emerald-50 border-emerald-200' : 'bg-amber-50 border-amber-200'}`}>
-                  <div>
-                    <p className={`font-black text-base ${stage3Locked ? 'text-emerald-800' : 'text-amber-800'}`}>
-                      {stage3Locked ? '✅ Stage 3 Saved' : '💾 Save Player Honors'}
-                    </p>
-                    <p className={`text-xs mt-0.5 ${stage3Locked ? 'text-emerald-600' : 'text-amber-600'}`}>
-                      {stage3Locked
-                        ? 'Player award picks are locked in. You can still update them.'
-                        : 'Lock in your Golden Ball, Boot & Gloves picks. +5 pts each.'}
-                    </p>
+                isLocked ? (
+                  <div className="rounded-[2rem] border-2 bg-emerald-50 border-emerald-200 p-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+                    <div>
+                      <p className="font-black text-base text-emerald-800">✅ Predictions Submitted</p>
+                      <p className="text-xs mt-0.5 text-emerald-600">Your full bracket & player picks are locked in. Good luck! 🏆</p>
+                    </div>
+                    <div className="flex-shrink-0 flex items-center gap-2 px-8 py-4 rounded-[1.5rem] font-black text-xs uppercase tracking-widest bg-emerald-600 text-white shadow-lg">
+                      <CheckCircle2 size={16} /> Locked In
+                    </div>
                   </div>
-                  <button
-                    onClick={submitStage3}
-                    disabled={submitting || (!awards.ball.trim() && !awards.boot.trim() && !awards.gloves.trim())}
-                    className={`flex-shrink-0 flex items-center gap-2 px-8 py-4 rounded-[1.5rem] font-black text-xs uppercase tracking-widest transition-all hover:scale-105 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed shadow-lg ${stage3Locked ? 'bg-emerald-600 text-white hover:bg-emerald-500' : 'bg-amber-500 text-white hover:bg-amber-400'}`}
-                  >
-                    {submitting ? <RefreshCw size={16} className="animate-spin" /> : stage3Locked ? <><CheckCircle2 size={16} /> Update Awards</> : <><Save size={16} /> Save Player Picks</>}
-                  </button>
-                </div>
+                ) : (
+                  <div className="rounded-[2rem] border-2 bg-gradient-to-r from-blue-50 via-indigo-50 to-amber-50 border-blue-200 p-6 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-sm">
+                    <div>
+                      <p className="font-black text-base text-blue-900">💾 Save All Predictions</p>
+                      <p className="text-xs mt-0.5 text-blue-700">
+                        Submit your groups, bracket & player picks in one step. <span className="font-black text-red-600">Once saved, no changes allowed.</span>
+                      </p>
+                      <div className="flex gap-2 mt-2 flex-wrap">
+                        <span className={`text-[9px] font-black px-2 py-0.5 rounded-full ${groupsComplete ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-400'}`}>
+                          {groupsComplete ? '✓' : '○'} Groups
+                        </span>
+                        <span className={`text-[9px] font-black px-2 py-0.5 rounded-full ${thirdsComplete ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-400'}`}>
+                          {thirdsComplete ? '✓' : '○'} 8 Thirds
+                        </span>
+                        <span className={`text-[9px] font-black px-2 py-0.5 rounded-full ${finalPicked ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-400'}`}>
+                          {finalPicked ? '✓' : '○'} Final Winner
+                        </span>
+                        <span className={`text-[9px] font-black px-2 py-0.5 rounded-full ${awards.ball && awards.boot && awards.gloves ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-400'}`}>
+                          {awards.ball && awards.boot && awards.gloves ? '✓' : '○'} Player Awards
+                        </span>
+                      </div>
+                    </div>
+                    <button
+                      onClick={submitAll}
+                      disabled={submitting || !groupsComplete || selectedThirdsIds.length < 8 || !bracketWinners['m104']}
+                      className="flex-shrink-0 flex items-center gap-2 px-8 py-4 rounded-[1.5rem] font-black text-xs uppercase tracking-widest transition-all hover:scale-105 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed shadow-lg bg-blue-600 text-white hover:bg-blue-500"
+                    >
+                      {submitting ? <RefreshCw size={16} className="animate-spin" /> : <><Save size={16} /> Save All Predictions</>}
+                    </button>
+                  </div>
+                )
               )}
             </>
           ) : (
@@ -1228,7 +1246,7 @@ export default function HerdArenaFinalMaster() {
                   </span>
                 </div>
                 <PointsBreakdownCard stage="group" />
-                <LeaderboardSection scoreField="group_points" label="group stage" />
+                <LeaderboardSection scoreField="group_points" label="group stage" showWinner winnerLabel="Stage 1 Leader" />
               </div>
 
               {/* SECTION 2 — Knockout Bracket */}
@@ -1246,7 +1264,7 @@ export default function HerdArenaFinalMaster() {
                   </span>
                 </div>
                 <PointsBreakdownCard stage="knockout" />
-                <LeaderboardSection scoreField="knockout_points" label="knockout stage" cumulative />
+                <LeaderboardSection scoreField="knockout_points" label="knockout stage" cumulative showWinner winnerLabel="Stage 2 Leader" />
               </div>
 
               {/* SECTION 3 — Final with Player Honors */}
@@ -1264,7 +1282,7 @@ export default function HerdArenaFinalMaster() {
                   </span>
                 </div>
                 <PointsBreakdownCard stage="final" />
-                <LeaderboardSection scoreField="points" label="tournament" isFinal />
+                <LeaderboardSection scoreField="points" label="tournament" isFinal showWinner winnerLabel="Overall Champion 🏆" />
               </div>
 
             </div>
@@ -1297,11 +1315,15 @@ function LeaderboardSection({
   label,
   cumulative = false,
   isFinal = false,
+  showWinner = false,
+  winnerLabel = 'Leader',
 }: {
   scoreField: string;
   label: string;
   cumulative?: boolean;
   isFinal?: boolean;
+  showWinner?: boolean;
+  winnerLabel?: string;
 }) {
   const [list, setList] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -1355,8 +1377,24 @@ function LeaderboardSection({
   const maxPts = Math.max(...list.map(u => getDisplayPts(u)), 1);
   const medals = ['🥇', '🥈', '🥉'];
 
+  const topEntry = list[0];
+  const topPts = topEntry ? getDisplayPts(topEntry) : 0;
+
   return (
     <div className="space-y-3">
+      {showWinner && topEntry && topPts > 0 && (
+        <div className="flex items-center gap-3 bg-gradient-to-r from-slate-950 to-slate-800 rounded-[1.5rem] px-5 py-4 mb-4 shadow-lg">
+          <div className="text-2xl">🥇</div>
+          <div className="flex-1 min-w-0">
+            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{winnerLabel}</p>
+            <p className="font-black text-white text-base truncate">{topEntry.bracket_name}</p>
+          </div>
+          <div className="text-right flex-shrink-0">
+            <p className="font-black text-2xl text-amber-400">{topPts}</p>
+            <p className="text-[9px] text-slate-500 uppercase font-bold">pts</p>
+          </div>
+        </div>
+      )}
       {list.map((u, i) => {
         const pts = getDisplayPts(u);
         const prevRank = prev.indexOf(u.id);
