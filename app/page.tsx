@@ -174,6 +174,76 @@ function LeaderboardRow({ u, i, prev, maxPts, showDelta = true }: {
   );
 }
 
+// ─── MINI STANDINGS (for login page) ─────────────────────────────────────────
+function MiniStandings() {
+  const [list, setList] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    supabase
+      .from('submissions')
+      .select('id, bracket_name, points, group_points, knockout_points, awards_points, created_at')
+      .order('points', { ascending: false })
+      .limit(10)
+      .then(({ data }) => {
+        setList(data || []);
+        setLoading(false);
+      });
+  }, []);
+
+  const medals = ['🥇', '🥈', '🥉'];
+
+  return (
+    <div className="bg-slate-950/95 backdrop-blur-md border border-white/10 rounded-[2rem] p-6 w-80 shadow-2xl">
+      <div className="flex items-center gap-2 mb-5">
+        <div className="bg-blue-600 p-1.5 rounded-xl"><Trophy size={14} className="text-white" /></div>
+        <div>
+          <p className="text-white font-black text-xs uppercase tracking-widest">Live Standings</p>
+          <p className="text-slate-500 text-[9px] uppercase tracking-widest">Herd Arena 2026</p>
+        </div>
+      </div>
+      {loading ? (
+        <div className="flex items-center justify-center py-8 gap-2 text-slate-500">
+          <RefreshCw size={14} className="animate-spin" />
+          <span className="text-xs font-bold">Loading...</span>
+        </div>
+      ) : list.length === 0 ? (
+        <p className="text-slate-500 text-center py-6 text-xs italic">No submissions yet — be the first!</p>
+      ) : (
+        <div className="space-y-2">
+          {list.map((u, i) => {
+            const pts = u.points ?? 0;
+            const maxPts = Math.max(...list.map((x: any) => x.points ?? 0), 1);
+            const pct = Math.round((pts / maxPts) * 100);
+            const isFirst = i === 0;
+            return (
+              <div
+                key={u.id}
+                className={`relative overflow-hidden rounded-2xl border transition-all ${isFirst ? 'bg-white/10 border-blue-500/40' : 'bg-white/5 border-white/5'}`}
+              >
+                <div
+                  className="absolute left-0 top-0 h-full rounded-2xl opacity-10 bg-blue-500 transition-all"
+                  style={{ width: `${pct}%` }}
+                />
+                <div className="relative z-10 flex items-center justify-between px-4 py-2.5">
+                  <div className="flex items-center gap-2.5">
+                    <span className="text-sm w-6 text-center flex-shrink-0">{i < 3 ? medals[i] : <span className="text-slate-500 font-black text-[10px]">#{i + 1}</span>}</span>
+                    <p className={`font-black text-[11px] truncate max-w-[140px] ${isFirst ? 'text-white' : 'text-slate-300'}`}>{u.bracket_name}</p>
+                  </div>
+                  <div className="text-right flex-shrink-0">
+                    <p className={`font-black text-base tabular-nums ${isFirst ? 'text-blue-400' : 'text-slate-400'}`}>{pts}</p>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+      <p className="text-slate-600 text-[9px] text-center mt-4 uppercase tracking-widest font-bold">Updates live · Max 267 pts</p>
+    </div>
+  );
+}
+
 // ─── ADMIN PANEL ──────────────────────────────────────────────────────────────
 function AdminPanel({
   onClose, toast
@@ -807,6 +877,28 @@ export default function HerdArenaFinalMaster() {
               style={{ backgroundImage: 'linear-gradient(#fff 1px, transparent 1px), linear-gradient(90deg, #fff 1px, transparent 1px)', backgroundSize: '60px 60px' }}
             />
           </div>
+
+          {/* Top-right: Admin + Live Standings */}
+          <div className="fixed top-5 right-5 z-50 flex flex-col items-end gap-3">
+            {isAdmin ? (
+              <button
+                onClick={() => setShowAdminPanel(true)}
+                className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2.5 rounded-2xl text-[10px] font-black uppercase tracking-widest transition shadow-xl"
+              >
+                <ShieldCheck size={14} /> Admin Panel
+              </button>
+            ) : (
+              <button
+                onClick={handleAdminLogin}
+                className="flex items-center gap-2 bg-white/10 hover:bg-white/20 text-slate-400 hover:text-white px-4 py-2.5 rounded-2xl text-[10px] font-black uppercase tracking-widest transition border border-white/10 shadow-xl backdrop-blur-sm"
+              >
+                <Lock size={12} /> Admin
+              </button>
+            )}
+            <MiniStandings />
+          </div>
+
+          {showAdminPanel && <AdminPanel onClose={() => setShowAdminPanel(false)} toast={toast} />}
 
           <div className="bg-white rounded-[3rem] shadow-2xl max-w-5xl w-full flex flex-col md:flex-row overflow-hidden overflow-y-auto max-h-[95vh] relative z-10">
             {/* Left: Rules */}
