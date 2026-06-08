@@ -464,7 +464,7 @@ export default function HerdArenaFinalMaster() {
     setHasMounted(true);
     const savedName = localStorage.getItem('herd_user_name');
     const savedLocked = localStorage.getItem('herd_locked');
-    if (savedName) { setBracketName(savedName); setIsEntryComplete(true); }
+    if (savedName) { setBracketName(savedName); }
     if (savedLocked === '1') setIsLocked(true);
     if (localStorage.getItem('herd_stage1_locked') === '1') setStage1Locked(true);
     if (localStorage.getItem('herd_stage2_locked') === '1') setStage2Locked(true);
@@ -846,7 +846,8 @@ export default function HerdArenaFinalMaster() {
                   <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-3">Maximum Points</p>
                   <div className="space-y-1">
                     {[
-                      ['Group Stage + R32', '152 pts'],
+                      ['Group Stage', '72 pts'],
+                      ['Round of 32', '80 pts'],
                       ['R16 → Final', '100 pts'],
                       ['Player Awards', '15 pts'],
                     ].map(([l, v]) => (
@@ -873,16 +874,60 @@ export default function HerdArenaFinalMaster() {
               className="p-10 md:p-12 md:w-7/12 flex flex-col justify-center relative overflow-hidden"
             >
               <div className="relative z-10">
-                <div className="mb-8">
-                  <div className="inline-flex items-center gap-2 bg-blue-50 border border-blue-100 px-4 py-2 rounded-full mb-4">
-                    <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
-                    <span className="text-[10px] font-black text-blue-600 uppercase tracking-widest">Predictions Open</span>
+
+                {/* ── Returning user quick-access ── */}
+                {bracketName && (
+                  <div className="mb-8 p-5 bg-slate-50 border-2 border-slate-200 rounded-[2rem]">
+                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-3">👋 Welcome back</p>
+                    <p className="font-black text-slate-900 text-lg mb-4 truncate">{bracketName}</p>
+                    <div className="flex flex-col gap-2">
+                      <button
+                        onClick={() => { setIsEntryComplete(true); setView('leaderboard'); }}
+                        className="w-full flex items-center justify-center gap-2 bg-blue-600 text-white px-5 py-3 rounded-2xl font-black text-sm hover:bg-blue-500 active:scale-95 transition-all"
+                      >
+                        <Users size={16} /> View Standings
+                      </button>
+                      <button
+                        onClick={() => {
+                          const p = prompt('Admin Password:');
+                          if (p === 'herd2026') {
+                            setIsEntryComplete(true);
+                            setIsAdmin(true);
+                            setShowAdminPanel(true);
+                            toast.success('Admin access granted');
+                          } else if (p !== null) {
+                            toast.error('Incorrect password');
+                          }
+                        }}
+                        className="w-full flex items-center justify-center gap-2 bg-emerald-600 text-white px-5 py-3 rounded-2xl font-black text-sm hover:bg-emerald-500 active:scale-95 transition-all"
+                      >
+                        <ShieldCheck size={16} /> Admin Panel
+                      </button>
+                      <button
+                        onClick={() => setIsEntryComplete(true)}
+                        className="w-full flex items-center justify-center gap-2 bg-slate-950 text-white px-5 py-3 rounded-2xl font-black text-sm hover:bg-slate-800 active:scale-95 transition-all"
+                      >
+                        <ArrowRight size={16} /> Back to My Bracket
+                      </button>
+                    </div>
+                    <div className="mt-4 border-t border-slate-200 pt-4">
+                      <p className="text-[9px] text-slate-400 font-bold text-center">Not {bracketName}? Enter a different name below.</p>
+                    </div>
                   </div>
-                  <h2 className="text-4xl font-black italic tracking-tighter text-slate-900 mb-2">
-                    Make Your<br /><span className="text-blue-600">Prediction.</span>
-                  </h2>
-                  <p className="text-slate-400 text-sm">Sign in to join the office championship and lock in your bracket.</p>
-                </div>
+                )}
+
+                {!bracketName && (
+                  <div className="mb-8">
+                    <div className="inline-flex items-center gap-2 bg-blue-50 border border-blue-100 px-4 py-2 rounded-full mb-4">
+                      <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
+                      <span className="text-[10px] font-black text-blue-600 uppercase tracking-widest">Predictions Open</span>
+                    </div>
+                    <h2 className="text-4xl font-black italic tracking-tighter text-slate-900 mb-2">
+                      Make Your<br /><span className="text-blue-600">Prediction.</span>
+                    </h2>
+                    <p className="text-slate-400 text-sm">Sign in to join the office championship and lock in your bracket.</p>
+                  </div>
+                )}
 
                 <div className="mb-6">
                   <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">⏱ Time Until Kickoff</p>
