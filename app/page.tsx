@@ -846,8 +846,9 @@ export default function HerdArenaFinalMaster() {
                   <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-3">Maximum Points</p>
                   <div className="space-y-1">
                     {[['Group Stage', '72 pts'],
-                      ['Round of 32', '80 pts'],
-                      ['R16 → Final', '100 pts'],
+                      ['R32 -> Semi Final', '150 pts'],
+                      ['Third Place', '10 pts'],
+                      ['World Cup Final', '20 pts'],
                       ['Player Awards', '15 pts'],
                     ].map(([l, v]) => (
                       <div key={l} className="flex justify-between text-xs">
