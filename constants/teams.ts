@@ -14,7 +14,7 @@ export const GROUPS_DATA: any = {
 };
 
 export const BRACKET_MAPPING = [
-  { id: 'm73', t1: 'A1', t2: '3RD-1' }, { id: 'm74', t1: 'E1', t2: 'A2' },
+  { id: 'm73', t1: 'E1', t2: '3RD-1' }, { id: 'm74', t1: 'L1', t2: 'A2' },
   { id: 'm75', t1: 'F1', t2: 'C2' }, { id: 'm76', t1: 'B1', t2: '3RD-2' },
   { id: 'm77', t1: 'C1', t2: '3RD-3' }, { id: 'm78', t1: 'G1', t2: 'B2' },
   { id: 'm79', t1: 'H1', t2: 'J2' }, { id: 'm80', t1: 'I1', t2: '3RD-4' },
