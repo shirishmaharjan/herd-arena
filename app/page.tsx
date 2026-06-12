@@ -514,7 +514,7 @@ function AdminPanel({
 export default function HerdArenaFinalMaster() {
   const [hasMounted, setHasMounted] = useState(false);
   const [isEntryComplete, setIsEntryComplete] = useState(false);
-  const [view, setView] = useState<'bracket' | 'leaderboard'>('bracket');
+  const [view, setView] = useState<'bracket' | 'leaderboard' | 'live'>('bracket');
   const [isAdmin, setIsAdmin] = useState(false);
   const [showAdminPanel, setShowAdminPanel] = useState(false);
   const [bracketName, setBracketName] = useState('');
@@ -533,12 +533,12 @@ export default function HerdArenaFinalMaster() {
   useEffect(() => {
     setHasMounted(true);
     const savedName = localStorage.getItem('herd_user_name');
-    const savedLocked = localStorage.getItem('herd_locked');
     if (savedName) { setBracketName(savedName); setIsEntryComplete(true); }
-    if (savedLocked === '1') setIsLocked(true);
-    if (localStorage.getItem('herd_stage1_locked') === '1') setStage1Locked(true);
-    if (localStorage.getItem('herd_stage2_locked') === '1') setStage2Locked(true);
-    if (localStorage.getItem('herd_stage3_locked') === '1') setStage3Locked(true);
+    // Tournament has started — predictions are permanently locked for everyone (except admin).
+    setIsLocked(true);
+    setStage1Locked(true);
+    setStage2Locked(true);
+    setStage3Locked(true);
   }, []);
 
   // Countdown timer
@@ -1056,6 +1056,7 @@ export default function HerdArenaFinalMaster() {
           <div className="flex gap-2 items-center">
             <button onClick={() => setView('bracket')} className={`px-4 py-2 rounded-xl text-[10px] font-black transition ${view === 'bracket' ? 'bg-slate-950 text-white' : 'text-slate-400 hover:bg-slate-100'}`}>BRACKET</button>
             <button onClick={() => setView('leaderboard')} className={`px-4 py-2 rounded-xl text-[10px] font-black transition ${view === 'leaderboard' ? 'bg-slate-950 text-white' : 'text-slate-400 hover:bg-slate-100'}`}>STANDINGS</button>
+            <button onClick={() => setView('live')} className={`px-4 py-2 rounded-xl text-[10px] font-black transition flex items-center gap-1.5 ${view === 'live' ? 'bg-slate-950 text-white' : 'text-slate-400 hover:bg-slate-100'}`}><Zap size={12} className="text-amber-400" />LIVE</button>
             {isAdmin ? (
               <button
                 onClick={() => setShowAdminPanel(true)}
@@ -1349,61 +1350,31 @@ export default function HerdArenaFinalMaster() {
                 </div>
               </section>
 
-              {/* ── SINGLE UNIFIED SAVE BUTTON ── */}
+              {/* ── PREDICTIONS CLOSED BANNER ── */}
               {!isAdmin && (
-                isLocked ? (
-                  <div className="rounded-[2rem] border-2 bg-emerald-50 border-emerald-200 p-6 flex flex-col sm:flex-row items-center justify-between gap-4">
-                    <div>
-                      <p className="font-black text-base text-emerald-800">✅ Predictions Submitted</p>
-                      <p className="text-xs mt-0.5 text-emerald-600">Your full bracket & player picks are locked in. Good luck! 🏆</p>
-                    </div>
-                    <div className="flex-shrink-0 flex items-center gap-3">
-                      <button
-                        onClick={downloadExcel}
-                        className="flex items-center gap-2 px-6 py-4 rounded-[1.5rem] font-black text-xs uppercase tracking-widest bg-white border-2 border-emerald-300 text-emerald-700 hover:bg-emerald-100 transition-all hover:scale-105 active:scale-95 shadow-sm"
-                      >
-                        <Download size={15} /> Download Predictions
-                      </button>
-                      <div className="flex items-center gap-2 px-8 py-4 rounded-[1.5rem] font-black text-xs uppercase tracking-widest bg-emerald-600 text-white shadow-lg">
-                        <CheckCircle2 size={16} /> Locked In
-                      </div>
-                    </div>
+                <div className="rounded-[2rem] border-2 bg-slate-950 border-slate-800 p-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+                  <div>
+                    <p className="font-black text-base text-white flex items-center gap-2"><Lock size={16} className="text-amber-400" /> Predictions Locked — Tournament Underway</p>
+                    <p className="text-xs mt-0.5 text-slate-400">The World Cup has kicked off, so submissions are closed. Your bracket above shows exactly what you predicted. Good luck! 🏆</p>
                   </div>
-                ) : (
-                  <div className="rounded-[2rem] border-2 bg-gradient-to-r from-blue-50 via-indigo-50 to-amber-50 border-blue-200 p-6 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-sm">
-                    <div>
-                      <p className="font-black text-base text-blue-900">💾 Save All Predictions</p>
-                      <p className="text-xs mt-0.5 text-blue-700">
-                        Submit your groups, bracket & player picks in one step. <span className="font-black text-red-600">Once saved, no changes allowed.</span>
-                      </p>
-                      <div className="flex gap-2 mt-2 flex-wrap">
-                        <span className={`text-[9px] font-black px-2 py-0.5 rounded-full ${groupsComplete ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-400'}`}>
-                          {groupsComplete ? '✓' : '○'} Groups
-                        </span>
-                        <span className={`text-[9px] font-black px-2 py-0.5 rounded-full ${thirdsComplete ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-400'}`}>
-                          {thirdsComplete ? '✓' : '○'} 8 Thirds
-                        </span>
-                        <span className={`text-[9px] font-black px-2 py-0.5 rounded-full ${finalPicked ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-400'}`}>
-                          {finalPicked ? '✓' : '○'} Final Winner
-                        </span>
-                        <span className={`text-[9px] font-black px-2 py-0.5 rounded-full ${awards.ball && awards.boot && awards.gloves ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-400'}`}>
-                          {awards.ball && awards.boot && awards.gloves ? '✓' : '○'} Player Awards
-                        </span>
-                      </div>
-                    </div>
+                  <div className="flex-shrink-0 flex items-center gap-3">
                     <button
-                      onClick={submitAll}
-                      disabled={submitting || !groupsComplete || selectedThirdsIds.length < 8 || !bracketWinners['m104']}
-                      className="flex-shrink-0 flex items-center gap-2 px-8 py-4 rounded-[1.5rem] font-black text-xs uppercase tracking-widest transition-all hover:scale-105 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed shadow-lg bg-blue-600 text-white hover:bg-blue-500"
+                      onClick={downloadExcel}
+                      className="flex items-center gap-2 px-6 py-4 rounded-[1.5rem] font-black text-xs uppercase tracking-widest bg-white/5 border-2 border-white/10 text-white hover:bg-white/10 transition-all hover:scale-105 active:scale-95"
                     >
-                      {submitting ? <RefreshCw size={16} className="animate-spin" /> : <><Save size={16} /> Save All Predictions</>}
+                      <Download size={15} /> Download Predictions
+                    </button>
+                    <button
+                      onClick={() => setView('live')}
+                      className="flex items-center gap-2 px-8 py-4 rounded-[1.5rem] font-black text-xs uppercase tracking-widest bg-blue-600 text-white shadow-lg hover:bg-blue-500 transition-all hover:scale-105 active:scale-95"
+                    >
+                      <Zap size={16} /> See Live Tracker
                     </button>
                   </div>
-                )
+                </div>
               )}
             </>
-          ) : (
-            // ─── THREE-SECTION LEADERBOARD ──────────────────────────────────────
+          ) : view === 'leaderboard' ? (
             <div className="max-w-2xl mx-auto space-y-12">
 
               {/* SECTION 1 — Group Stage + Round of 32 */}
@@ -1461,6 +1432,8 @@ export default function HerdArenaFinalMaster() {
               </div>
 
             </div>
+          ) : (
+            <LiveTracker bracketName={bracketName} isAdmin={isAdmin} getTeam={getTeam} toast={toast} />
           )}
         </main>
 
@@ -1691,6 +1664,176 @@ function MatchBox({ t1, t2, winner, onPick }: any) {
           </button>
         );
       })}
+    </div>
+  );
+}
+
+// ─── LIVE GROUP TRACKER ───────────────────────────────────────────────────────
+// Reads the admin-maintained `live_standings` table (one row, jsonb `standings`
+// shaped exactly like prediction standings: { [groupId]: { 1: teamId, 2: teamId, 3: teamId } })
+// and compares it against the current user's saved prediction.
+function LiveTracker({ bracketName, isAdmin, getTeam, toast }: {
+  bracketName: string; isAdmin: boolean; getTeam: (id: string) => any; toast: ReturnType<typeof useToast>;
+}) {
+  const [live, setLive] = useState<Record<string, Record<number, string>>>({});
+  const [updatedAt, setUpdatedAt] = useState<string | null>(null);
+  const [predicted, setPredicted] = useState<Record<string, Record<number, string>>>({});
+  const [loading, setLoading] = useState(true);
+  const [draft, setDraft] = useState<Record<string, Record<number, string>>>({});
+  const [saving, setSaving] = useState(false);
+
+  const loadLive = async () => {
+    const { data } = await supabase
+      .from('live_standings')
+      .select('*')
+      .order('updated_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    setLive(data?.standings || {});
+    setDraft(data?.standings || {});
+    setUpdatedAt(data?.updated_at || null);
+  };
+
+  const loadPrediction = async () => {
+    if (!bracketName) return;
+    const { data } = await supabase
+      .from('submissions')
+      .select('bracket_data')
+      .eq('bracket_name', bracketName)
+      .maybeSingle();
+    setPredicted(data?.bracket_data?.standings || {});
+  };
+
+  useEffect(() => {
+    setLoading(true);
+    Promise.all([loadLive(), loadPrediction()]).finally(() => setLoading(false));
+  }, [bracketName]);
+
+  const saveLive = async () => {
+    setSaving(true);
+    try {
+      await supabase.from('live_standings').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+      const { error } = await supabase.from('live_standings').insert([{ standings: draft }]);
+      if (error) throw error;
+      toast.success('Live group standings updated! Everyone will see it instantly. ⚡');
+      await loadLive();
+    } catch (e: any) {
+      toast.error(e?.message || 'Failed to save live standings.');
+    }
+    setSaving(false);
+  };
+
+  if (loading) return (
+    <div className="text-center py-20 text-slate-400">
+      <RefreshCw size={20} className="animate-spin mx-auto mb-2" />
+      <p className="text-xs font-bold">Loading live tracker...</p>
+    </div>
+  );
+
+  const livePoints = Object.keys(GROUPS_DATA).reduce((sum, gid) => {
+    return sum + [1, 2, 3].reduce((s, r) => s + (predicted[gid]?.[r] && predicted[gid][r] === live[gid]?.[r] ? 2 : 0), 0);
+  }, 0);
+  const maxLivePoints = 72;
+
+  return (
+    <div className="max-w-5xl mx-auto space-y-8">
+      <div className="bg-slate-950 rounded-[3rem] p-8 md:p-10 text-white shadow-2xl flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div>
+          <span className="inline-flex items-center gap-2 bg-amber-500/20 border border-amber-500/30 text-amber-400 px-4 py-1.5 rounded-full text-[10px] font-black uppercase mb-3">
+            <Zap size={12} /> Live Tournament Tracker
+          </span>
+          <h2 className="text-3xl font-black italic tracking-tighter">
+            Your Picks vs <span className="text-blue-400">Reality</span>
+          </h2>
+          <p className="text-slate-400 text-sm mt-1">
+            {updatedAt
+              ? `Group standings last updated ${new Date(updatedAt).toLocaleString()}`
+              : 'Live group standings have not been published yet — check back after the next round of matches.'}
+          </p>
+        </div>
+        <div className="bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-center flex-shrink-0">
+          <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Live Group-Stage Points</p>
+          <p className="text-3xl font-black text-blue-400">{livePoints} <span className="text-slate-500 text-sm">/ {maxLivePoints}</span></p>
+        </div>
+      </div>
+
+      {isAdmin && (
+        <div className="bg-emerald-50 border-2 border-emerald-200 rounded-[2rem] p-6">
+          <h3 className="text-[10px] font-black text-emerald-700 uppercase tracking-widest mb-4 flex items-center gap-2">
+            <ShieldCheck size={14} /> Admin: Update Current Group Standings
+          </h3>
+          <p className="text-xs text-emerald-700 mb-4">After each round of group matches, set each group's current 1st / 2nd / 3rd place team here, then save. Every colleague's tracker updates instantly.</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 mb-4">
+            {Object.entries(GROUPS_DATA).map(([gid, g]: any) => (
+              <div key={gid} className="bg-white rounded-2xl p-4 border border-emerald-100">
+                <p className="text-[10px] font-black text-slate-400 uppercase mb-2">Group {gid}</p>
+                {[1, 2, 3].map(r => (
+                  <select
+                    key={r}
+                    className="w-full text-xs font-bold border border-slate-200 rounded-xl px-2 py-1.5 mb-1.5 outline-none focus:border-blue-400"
+                    value={draft[gid]?.[r] || ''}
+                    onChange={e => setDraft(p => ({ ...p, [gid]: { ...(p[gid] || {}), [r]: e.target.value } }))}
+                  >
+                    <option value="">— {r === 1 ? '1st' : r === 2 ? '2nd' : '3rd'} place —</option>
+                    {g.teams.map((t: any) => <option key={t.id} value={t.id}>{t.n}</option>)}
+                  </select>
+                ))}
+              </div>
+            ))}
+          </div>
+          <button
+            onClick={saveLive}
+            disabled={saving}
+            className="flex items-center gap-2 px-8 py-4 rounded-2xl font-black text-xs uppercase tracking-widest bg-emerald-600 text-white shadow-lg hover:bg-emerald-500 transition-all disabled:opacity-50"
+          >
+            {saving ? <RefreshCw size={16} className="animate-spin" /> : <Save size={16} />} Publish Live Standings
+          </button>
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5">
+        {Object.entries(GROUPS_DATA).map(([gid, g]: any) => {
+          const groupLive = live[gid] || {};
+          const groupPred = predicted[gid] || {};
+          const hasLive = [1, 2, 3].some(r => groupLive[r]);
+          return (
+            <div key={gid} className="bg-white border-2 border-slate-200 rounded-[2rem] p-6 shadow-sm">
+              <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest font-mono mb-4">Group {gid}</h3>
+              {!hasLive ? (
+                <p className="text-[10px] text-slate-300 italic">Live standings not published yet.</p>
+              ) : (
+                <div className="space-y-3">
+                  {[1, 2, 3].map(r => {
+                    const liveTeam = groupLive[r] ? getTeam(groupLive[r]) : null;
+                    const predTeam = groupPred[r] ? getTeam(groupPred[r]) : null;
+                    const match = !!(groupPred[r] && groupPred[r] === groupLive[r]);
+                    return (
+                      <div key={r} className={`flex items-center justify-between gap-2 rounded-xl p-2 ${match ? 'bg-emerald-50 border border-emerald-200' : 'bg-slate-50 border border-slate-100'}`}>
+                        <div className="flex items-center gap-2 min-w-0">
+                          <span className="text-[9px] font-black text-slate-400 w-4">{r}</span>
+                          {liveTeam?.c && <img src={`https://flagcdn.com/w40/${liveTeam.c}.png`} className="w-5 h-3.5 object-cover rounded shadow-sm flex-shrink-0" alt="" />}
+                          <span className="text-[11px] font-black truncate">{liveTeam?.n || '—'}</span>
+                        </div>
+                        <div className="flex items-center gap-1.5 flex-shrink-0">
+                          {match
+                            ? <span className="text-[9px] font-black text-emerald-600 flex items-center gap-1"><CheckCircle2 size={11} /> +2</span>
+                            : <span className="text-[9px] font-bold text-slate-400 truncate max-w-[80px]">You: {predTeam?.n || '—'}</span>
+                          }
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      <div className="bg-blue-50 border border-blue-100 rounded-[2rem] p-5 text-xs text-blue-700 font-bold flex items-start gap-3">
+        <Info size={16} className="flex-shrink-0 mt-0.5" />
+        <span>Live points here are an early preview only — your official Stage 1 score (shown on the Standings tab) is calculated once the group stage finishes and matches the final official table exactly.</span>
+      </div>
     </div>
   );
 }
