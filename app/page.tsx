@@ -1736,7 +1736,7 @@ function LiveTracker({ bracketName, isAdmin, getTeam, toast }: {
   const maxLivePoints = 72;
 
   return (
-    <div className="max-w-5xl mx-auto space-y-8">
+    <div className="max-w-6xl mx-auto space-y-8">
       <div className="bg-slate-950 rounded-[3rem] p-8 md:p-10 text-white shadow-2xl flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
           <span className="inline-flex items-center gap-2 bg-amber-500/20 border border-amber-500/30 text-amber-400 px-4 py-1.5 rounded-full text-[10px] font-black uppercase mb-3">
@@ -1791,7 +1791,7 @@ function LiveTracker({ bracketName, isAdmin, getTeam, toast }: {
         </div>
       )}
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-5">
         {Object.entries(GROUPS_DATA).map(([gid, g]: any) => {
           const groupLive = live[gid] || {};
           const groupPred = predicted[gid] || {};
@@ -1817,7 +1817,7 @@ function LiveTracker({ bracketName, isAdmin, getTeam, toast }: {
                         <div className="flex items-center gap-1.5 flex-shrink-0">
                           {match
                             ? <span className="text-[9px] font-black text-emerald-600 flex items-center gap-1"><CheckCircle2 size={11} /> +2</span>
-                            : <span className="text-[9px] font-bold text-slate-400 truncate max-w-[80px]">You: {predTeam?.n || '—'}</span>
+                            : <span className="text-[9px] font-bold text-slate-400 truncate max-w-[140px]">You: {predTeam?.n || '—'}</span>
                           }
                         </div>
                       </div>
