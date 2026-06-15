@@ -1689,9 +1689,8 @@ function BumpChart({ snapshots }: { snapshots: Array<{ id: string; created_at: s
 
   // Gather all participant names across all snapshots
   const allNames = Array.from(new Set(snapshots.flatMap(s => Object.keys(s.scores)))).sort();
-
-  const W = 900, H = 480;
-  const PAD_LEFT = 16, PAD_RIGHT = 160, PAD_TOP = 36, PAD_BOTTOM = 36;
+  const W = 900, H = Math.max(560, allNames.length * 20 + 80);
+  const PAD_LEFT = 28, PAD_RIGHT = 170, PAD_TOP = 36, PAD_BOTTOM = 36;
   const chartW = W - PAD_LEFT - PAD_RIGHT;
   const chartH = H - PAD_TOP - PAD_BOTTOM;
 
@@ -1813,12 +1812,14 @@ function BumpChart({ snapshots }: { snapshots: Array<{ id: string; created_at: s
           );
         })}
 
-        {/* Right-side name labels, ordered by latest points */}
+        {/* Right-side name labels — evenly spaced to prevent overlap, with connector lines */}
         {namesSortedByLatest.map((name, rankIdx) => {
           const ni = allNames.indexOf(name);
           const color = BUMP_COLORS[ni % BUMP_COLORS.length];
           const latestPts = latestSnap.scores[name] ?? 0;
-          const y = yFor(latestPts);
+          const dataY = yFor(latestPts);
+          const labelStep = chartH / (namesSortedByLatest.length - 1);
+          const labelY = PAD_TOP + rankIdx * labelStep;
           const isHovered = hoveredName === name;
           const isDimmed = hoveredName !== null && !isHovered;
           return (
@@ -1828,17 +1829,28 @@ function BumpChart({ snapshots }: { snapshots: Array<{ id: string; created_at: s
               onMouseEnter={() => setHoveredName(name)}
               onMouseLeave={() => setHoveredName(null)}
             >
-              <circle cx={PAD_LEFT + chartW + 6} cy={y} r={3} fill={color} fillOpacity={isDimmed ? 0.15 : 1} />
+              {/* Connector from data point to label */}
+              <line
+                x1={PAD_LEFT + chartW + 4}
+                y1={dataY}
+                x2={PAD_LEFT + chartW + 10}
+                y2={labelY}
+                stroke={color}
+                strokeWidth={0.75}
+                strokeOpacity={isDimmed ? 0.08 : isHovered ? 0.7 : 0.28}
+                strokeDasharray="2 3"
+              />
+              <circle cx={PAD_LEFT + chartW + 10} cy={labelY} r={2.5} fill={color} fillOpacity={isDimmed ? 0.1 : 1} />
               <text
-                x={PAD_LEFT + chartW + 13}
-                y={y + 4}
-                fontSize="9.5"
+                x={PAD_LEFT + chartW + 15}
+                y={labelY + 3.5}
+                fontSize="9"
                 fill={color}
                 fontWeight={isHovered ? '900' : '700'}
-                fillOpacity={isDimmed ? 0.2 : 1}
+                fillOpacity={isDimmed ? 0.15 : 1}
                 style={{ transition: 'fill-opacity 0.15s' }}
               >
-                {name.length > 14 ? name.slice(0, 13) + '…' : name} · {latestPts}
+                {name.length > 13 ? name.slice(0, 12) + '…' : name} · {latestPts}
               </text>
             </g>
           );
