@@ -1668,10 +1668,205 @@ function MatchBox({ t1, t2, winner, onPick }: any) {
   );
 }
 
+// ─── BUMP CHART ───────────────────────────────────────────────────────────────
+// Displays all 26 participants' group-stage points across recorded snapshots.
+// Each snapshot is a moment in time when the admin clicked "Record Snapshot".
+// Shape of a snapshot row: { id, created_at, label, scores: { [bracketName]: number } }
+
+const BUMP_COLORS = [
+  '#3b82f6','#ef4444','#10b981','#f59e0b','#8b5cf6',
+  '#ec4899','#06b6d4','#84cc16','#f97316','#6366f1',
+  '#14b8a6','#e11d48','#0ea5e9','#a855f7','#22c55e',
+  '#fb923c','#64748b','#d946ef','#0891b2','#ca8a04',
+  '#7c3aed','#dc2626','#059669','#d97706','#2563eb','#db2777',
+];
+
+function BumpChart({ snapshots }: { snapshots: Array<{ id: string; created_at: string; label: string; scores: Record<string, number> }> }) {
+  const [hoveredName, setHoveredName] = useState<string | null>(null);
+  const [tooltip, setTooltip] = useState<{ x: number; y: number; name: string; pts: number; snap: string } | null>(null);
+
+  if (snapshots.length < 1) return null;
+
+  // Gather all participant names across all snapshots
+  const allNames = Array.from(new Set(snapshots.flatMap(s => Object.keys(s.scores)))).sort();
+
+  const W = 900, H = 480;
+  const PAD_LEFT = 16, PAD_RIGHT = 160, PAD_TOP = 36, PAD_BOTTOM = 36;
+  const chartW = W - PAD_LEFT - PAD_RIGHT;
+  const chartH = H - PAD_TOP - PAD_BOTTOM;
+
+  const nSnaps = snapshots.length;
+  const maxPts = 72;
+
+  const xFor = (snapIdx: number) =>
+    nSnaps === 1 ? PAD_LEFT + chartW / 2 : PAD_LEFT + (snapIdx / (nSnaps - 1)) * chartW;
+
+  const yFor = (pts: number) =>
+    PAD_TOP + chartH - (pts / maxPts) * chartH;
+
+  // Build smooth SVG path through points using cubic bezier
+  const buildPath = (points: Array<[number, number]>) => {
+    if (points.length === 1) {
+      const [x, y] = points[0];
+      return `M ${x},${y}`;
+    }
+    let d = `M ${points[0][0]},${points[0][1]}`;
+    for (let i = 1; i < points.length; i++) {
+      const [x0, y0] = points[i - 1];
+      const [x1, y1] = points[i];
+      const cpx = (x0 + x1) / 2;
+      d += ` C ${cpx},${y0} ${cpx},${y1} ${x1},${y1}`;
+    }
+    return d;
+  };
+
+  const latestSnap = snapshots[snapshots.length - 1];
+  // Sort names by their latest points for right-side label ordering
+  const namesSortedByLatest = [...allNames].sort(
+    (a, b) => (latestSnap.scores[b] ?? 0) - (latestSnap.scores[a] ?? 0)
+  );
+
+  return (
+    <div className="relative w-full overflow-x-auto">
+      <svg
+        viewBox={`0 0 ${W} ${H}`}
+        className="w-full"
+        style={{ minWidth: 480, fontFamily: 'inherit' }}
+        onMouseLeave={() => { setHoveredName(null); setTooltip(null); }}
+      >
+        {/* Y-axis grid lines */}
+        {[0, 12, 24, 36, 48, 60, 72].map(pts => {
+          const y = yFor(pts);
+          return (
+            <g key={pts}>
+              <line x1={PAD_LEFT} y1={y} x2={PAD_LEFT + chartW} y2={y} stroke="#e2e8f0" strokeWidth="1" strokeDasharray={pts === 0 || pts === 72 ? '0' : '4 4'} />
+              <text x={PAD_LEFT - 4} y={y + 4} textAnchor="end" fontSize="9" fill="#94a3b8" fontWeight="700">{pts}</text>
+            </g>
+          );
+        })}
+
+        {/* Snapshot x-axis labels */}
+        {snapshots.map((snap, si) => (
+          <text key={snap.id} x={xFor(si)} y={PAD_TOP - 10} textAnchor="middle" fontSize="9" fill="#64748b" fontWeight="800">
+            {snap.label || `Round ${si + 1}`}
+          </text>
+        ))}
+
+        {/* Vertical snap lines */}
+        {snapshots.map((snap, si) => (
+          <line key={snap.id} x1={xFor(si)} y1={PAD_TOP} x2={xFor(si)} y2={PAD_TOP + chartH} stroke="#f1f5f9" strokeWidth="1.5" />
+        ))}
+
+        {/* Lines per participant */}
+        {allNames.map((name, ni) => {
+          const color = BUMP_COLORS[ni % BUMP_COLORS.length];
+          const points: Array<[number, number]> = snapshots
+            .map((snap, si) => snap.scores[name] != null ? [xFor(si), yFor(snap.scores[name])] as [number, number] : null)
+            .filter(Boolean) as Array<[number, number]>;
+
+          if (points.length === 0) return null;
+          const isHovered = hoveredName === name;
+          const isDimmed = hoveredName !== null && !isHovered;
+
+          return (
+            <g key={name}>
+              <path
+                d={buildPath(points)}
+                fill="none"
+                stroke={color}
+                strokeWidth={isHovered ? 3.5 : 2}
+                strokeOpacity={isDimmed ? 0.12 : isHovered ? 1 : 0.7}
+                style={{ transition: 'stroke-opacity 0.15s, stroke-width 0.15s' }}
+              />
+              {/* Invisible wider hit area for hover */}
+              <path
+                d={buildPath(points)}
+                fill="none"
+                stroke="transparent"
+                strokeWidth={16}
+                style={{ cursor: 'pointer' }}
+                onMouseEnter={() => setHoveredName(name)}
+              />
+              {/* Dots at each snapshot */}
+              {points.map(([x, y], pi) => {
+                const pts = snapshots[snapshots.findIndex((_, si) => xFor(si) === x)]?.scores[name];
+                return (
+                  <circle
+                    key={pi}
+                    cx={x} cy={y} r={isHovered ? 5 : 3.5}
+                    fill={color}
+                    fillOpacity={isDimmed ? 0.1 : 1}
+                    stroke="white"
+                    strokeWidth={isHovered ? 2 : 1.5}
+                    style={{ cursor: 'pointer', transition: 'fill-opacity 0.15s, r 0.1s' }}
+                    onMouseEnter={e => {
+                      setHoveredName(name);
+                      const svg = (e.target as SVGElement).closest('svg')!.getBoundingClientRect();
+                      const snapIdx = snapshots.findIndex((_, si) => Math.abs(xFor(si) - x) < 1);
+                      setTooltip({ x: e.clientX - svg.left, y: e.clientY - svg.top, name, pts: pts ?? 0, snap: snapshots[snapIdx]?.label || `Round ${snapIdx + 1}` });
+                    }}
+                    onMouseLeave={() => setTooltip(null)}
+                  />
+                );
+              })}
+            </g>
+          );
+        })}
+
+        {/* Right-side name labels, ordered by latest points */}
+        {namesSortedByLatest.map((name, rankIdx) => {
+          const ni = allNames.indexOf(name);
+          const color = BUMP_COLORS[ni % BUMP_COLORS.length];
+          const latestPts = latestSnap.scores[name] ?? 0;
+          const y = yFor(latestPts);
+          const isHovered = hoveredName === name;
+          const isDimmed = hoveredName !== null && !isHovered;
+          return (
+            <g
+              key={name}
+              style={{ cursor: 'pointer' }}
+              onMouseEnter={() => setHoveredName(name)}
+              onMouseLeave={() => setHoveredName(null)}
+            >
+              <circle cx={PAD_LEFT + chartW + 6} cy={y} r={3} fill={color} fillOpacity={isDimmed ? 0.15 : 1} />
+              <text
+                x={PAD_LEFT + chartW + 13}
+                y={y + 4}
+                fontSize="9.5"
+                fill={color}
+                fontWeight={isHovered ? '900' : '700'}
+                fillOpacity={isDimmed ? 0.2 : 1}
+                style={{ transition: 'fill-opacity 0.15s' }}
+              >
+                {name.length > 14 ? name.slice(0, 13) + '…' : name} · {latestPts}
+              </text>
+            </g>
+          );
+        })}
+
+        {/* Tooltip */}
+        {tooltip && (
+          <g>
+            <rect x={tooltip.x - 70} y={tooltip.y - 38} width={140} height={34} rx={8} fill="#0f172a" opacity={0.93} />
+            <text x={tooltip.x} y={tooltip.y - 22} textAnchor="middle" fontSize="10" fill="white" fontWeight="800">{tooltip.name}</text>
+            <text x={tooltip.x} y={tooltip.y - 10} textAnchor="middle" fontSize="9" fill="#93c5fd">{tooltip.snap} · {tooltip.pts} pts</text>
+          </g>
+        )}
+      </svg>
+    </div>
+  );
+}
+
 // ─── LIVE GROUP TRACKER ───────────────────────────────────────────────────────
 // Reads the admin-maintained `live_standings` table (one row, jsonb `standings`
 // shaped exactly like prediction standings: { [groupId]: { 1: teamId, 2: teamId, 3: teamId } })
 // and compares it against the current user's saved prediction.
+//
+// SUPABASE TABLE REQUIRED: live_snapshots
+//   id          uuid default gen_random_uuid() primary key
+//   created_at  timestamptz default now()
+//   label       text  -- e.g. "Matchday 1", "Round 2"
+//   scores      jsonb -- { bracketName: points, ... }
 function LiveTracker({ bracketName, isAdmin, getTeam, toast }: {
   bracketName: string; isAdmin: boolean; getTeam: (id: string) => any; toast: ReturnType<typeof useToast>;
 }) {
@@ -1681,6 +1876,12 @@ function LiveTracker({ bracketName, isAdmin, getTeam, toast }: {
   const [loading, setLoading] = useState(true);
   const [draft, setDraft] = useState<Record<string, Record<number, string>>>({});
   const [saving, setSaving] = useState(false);
+
+  // Snapshot state
+  const [snapshots, setSnapshots] = useState<Array<{ id: string; created_at: string; label: string; scores: Record<string, number> }>>([]);
+  const [snapshotLabel, setSnapshotLabel] = useState(() => new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }));
+  const [recordingSnap, setRecordingSnap] = useState(false);
+  const [deletingSnapId, setDeletingSnapId] = useState<string | null>(null);
 
   const loadLive = async () => {
     const { data } = await supabase
@@ -1704,9 +1905,17 @@ function LiveTracker({ bracketName, isAdmin, getTeam, toast }: {
     setPredicted(data?.bracket_data?.standings || {});
   };
 
+  const loadSnapshots = async () => {
+    const { data } = await supabase
+      .from('live_snapshots')
+      .select('*')
+      .order('created_at', { ascending: true });
+    setSnapshots(data || []);
+  };
+
   useEffect(() => {
     setLoading(true);
-    Promise.all([loadLive(), loadPrediction()]).finally(() => setLoading(false));
+    Promise.all([loadLive(), loadPrediction(), loadSnapshots()]).finally(() => setLoading(false));
   }, [bracketName]);
 
   const saveLive = async () => {
@@ -1721,6 +1930,52 @@ function LiveTracker({ bracketName, isAdmin, getTeam, toast }: {
       toast.error(e?.message || 'Failed to save live standings.');
     }
     setSaving(false);
+  };
+
+  // Compute each participant's group-stage points against a given standings object
+  const computeScoresAgainstStandings = async (liveStandings: Record<string, Record<number, string>>) => {
+    const { data: allSubs } = await supabase
+      .from('submissions')
+      .select('bracket_name, bracket_data');
+    const scores: Record<string, number> = {};
+    for (const sub of (allSubs || [])) {
+      const pred = sub.bracket_data?.standings || {};
+      let pts = 0;
+      Object.keys(liveStandings).forEach(gid =>
+        [1, 2, 3].forEach(r => {
+          if (pred[gid]?.[r] && pred[gid][r] === liveStandings[gid]?.[r]) pts += 2;
+        })
+      );
+      scores[sub.bracket_name] = pts;
+    }
+    return scores;
+  };
+
+  const recordSnapshot = async () => {
+    if (!snapshotLabel.trim()) { toast.error('Please enter a label for this snapshot (e.g. "Matchday 2")'); return; }
+    setRecordingSnap(true);
+    try {
+      const scores = await computeScoresAgainstStandings(live);
+      const { error } = await supabase.from('live_snapshots').insert([{
+        label: snapshotLabel.trim(),
+        scores,
+      }]);
+      if (error) throw error;
+      toast.success(`Snapshot "${snapshotLabel.trim()}" recorded for ${Object.keys(scores).length} participants! 📸`);
+      setSnapshotLabel(new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }));
+      await loadSnapshots();
+    } catch (e: any) {
+      toast.error(e?.message || 'Failed to record snapshot.');
+    }
+    setRecordingSnap(false);
+  };
+
+  const deleteSnapshot = async (id: string) => {
+    setDeletingSnapId(id);
+    const { error } = await supabase.from('live_snapshots').delete().eq('id', id);
+    if (error) toast.error(error.message);
+    else { toast.success('Snapshot deleted.'); await loadSnapshots(); }
+    setDeletingSnapId(null);
   };
 
   if (loading) return (
@@ -1788,6 +2043,79 @@ function LiveTracker({ bracketName, isAdmin, getTeam, toast }: {
           >
             {saving ? <RefreshCw size={16} className="animate-spin" /> : <Save size={16} />} Publish Live Standings
           </button>
+
+          {/* ── Snapshot recorder ── */}
+          <div className="mt-6 pt-6 border-t border-emerald-200">
+            <h4 className="text-[10px] font-black text-emerald-700 uppercase tracking-widest mb-1 flex items-center gap-2">
+              <Target size={12} /> Record Bump Chart Snapshot
+            </h4>
+            <p className="text-[11px] text-emerald-600 mb-3">
+              After publishing standings above, record a snapshot to capture everyone's current points on the trend chart. Give it a label like "Matchday 2" so participants know when it was taken.
+            </p>
+            <div className="flex gap-3 flex-wrap">
+              <input
+                type="text"
+                placeholder='e.g. "Matchday 2" or "After GW3"'
+                value={snapshotLabel}
+                onChange={e => setSnapshotLabel(e.target.value)}
+                className="flex-1 min-w-[200px] text-xs font-bold border-2 border-emerald-300 rounded-2xl px-4 py-3 outline-none focus:border-emerald-500 bg-white"
+              />
+              <button
+                onClick={recordSnapshot}
+                disabled={recordingSnap || !snapshotLabel.trim()}
+                className="flex items-center gap-2 px-6 py-3 rounded-2xl font-black text-xs uppercase tracking-widest bg-slate-950 text-white shadow hover:bg-slate-800 transition-all disabled:opacity-40"
+              >
+                {recordingSnap ? <RefreshCw size={14} className="animate-spin" /> : <Database size={14} />}
+                Record Snapshot
+              </button>
+            </div>
+
+            {/* Existing snapshots list */}
+            {snapshots.length > 0 && (
+              <div className="mt-4 space-y-2">
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Recorded snapshots</p>
+                {snapshots.map(snap => (
+                  <div key={snap.id} className="flex items-center justify-between bg-white rounded-xl px-4 py-2.5 border border-emerald-100">
+                    <div>
+                      <p className="text-xs font-black text-slate-700">{snap.label}</p>
+                      <p className="text-[10px] text-slate-400">{new Date(snap.created_at).toLocaleString()} · {Object.keys(snap.scores).length} participants</p>
+                    </div>
+                    <button
+                      onClick={() => deleteSnapshot(snap.id)}
+                      disabled={deletingSnapId === snap.id}
+                      className="text-red-400 hover:text-red-600 p-1.5 rounded-lg hover:bg-red-50 transition"
+                    >
+                      {deletingSnapId === snap.id ? <RefreshCw size={13} className="animate-spin" /> : <X size={13} />}
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ── Bump Chart (visible to all) ── */}
+      {snapshots.length > 0 && (
+        <div className="bg-slate-950 rounded-[2rem] p-6 md:p-8 shadow-2xl">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
+            <div>
+              <span className="inline-flex items-center gap-1.5 bg-blue-500/20 border border-blue-500/30 text-blue-400 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest mb-2">
+                <Zap size={10} /> Points Trend
+              </span>
+              <h3 className="text-white text-xl font-black italic tracking-tight">Group Stage Bump Chart</h3>
+              <p className="text-slate-400 text-xs mt-0.5">Hover a line to highlight a participant · Max 72 pts</p>
+            </div>
+            <div className="text-[10px] text-slate-500 font-bold text-right">
+              {snapshots.length} snapshot{snapshots.length !== 1 ? 's' : ''} recorded
+            </div>
+          </div>
+          <div className="bg-white rounded-2xl p-4">
+            <BumpChart snapshots={snapshots} />
+          </div>
+          {snapshots.length === 1 && (
+            <p className="text-slate-500 text-[10px] text-center mt-3 font-bold">Record a second snapshot to see the trend lines connect ✦</p>
+          )}
         </div>
       )}
 
