@@ -4,7 +4,7 @@ import {
   Trophy, Check, Award, Info, ShieldCheck, Save, ArrowRight,
   Database, Star, Search, Users, Lock, Unlock, ChevronUp, ChevronDown,
   Zap, Target, Crown, Medal, RefreshCw, X, AlertCircle, CheckCircle2, Download,
-  TrendingUp, TrendingDown, Flame, Swords
+  TrendingUp, TrendingDown, Flame, Swords, ChevronRight
 } from 'lucide-react';
 import { GROUPS_DATA, BRACKET_MAPPING } from '../constants/teams';
 import { supabase } from '../lib/supabase';
@@ -253,7 +253,7 @@ function AdminPanel({
   const [submissions, setSubmissions] = useState<any[]>([]);
   const [official, setOfficial] = useState<any>(null);
   const [loading, setLoading] = useState(false);
-  const [officialAwards, setOfficialAwards] = useState({ ball: '', boot: '', gloves: '' });
+  const [officialAwards, setOfficialAwards] = useState({ ball: '', boot: '', gloves: '', bootGoals: 0 });
   const [recalcDone, setRecalcDone] = useState(false);
 
   useEffect(() => {
@@ -276,9 +276,10 @@ function AdminPanel({
     if (data) {
       setOfficial(data);
       setOfficialAwards({
-        ball: data.golden_ball || '',
-        boot: data.golden_boot || '',
-        gloves: data.golden_gloves || '',
+        ball:      data.golden_ball   || '',
+        boot:      data.golden_boot   || '',
+        gloves:    data.golden_gloves || '',
+        bootGoals: data.boot_goals    || 0,
       });
     }
   };
@@ -357,9 +358,10 @@ function AdminPanel({
     const { error } = await supabase
       .from('official_results')
       .update({
-        golden_ball: officialAwards.ball,
-        golden_boot: officialAwards.boot,
+        golden_ball:   officialAwards.ball,
+        golden_boot:   officialAwards.boot,
         golden_gloves: officialAwards.gloves,
+        boot_goals:    officialAwards.bootGoals,
       })
       .eq('id', official.id);
     if (error) toast.error(error.message);
@@ -412,12 +414,13 @@ function AdminPanel({
                 <h3 className="text-white font-black mb-4 flex items-center gap-2"><Star size={16} className="text-yellow-400" /> Player Awards (Official)</h3>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   {[
-                    { l: '🏅 Golden Ball (MVP)', k: 'ball' },
-                    { l: '👟 Golden Boot', k: 'boot' },
-                    { l: '🧤 Golden Gloves', k: 'gloves' },
+                    { l: '🏅 Golden Ball (MVP)', k: 'ball',   hint: 'Confirmed at finale' },
+                    { l: '👟 Golden Boot',       k: 'boot',   hint: 'Update after each matchday' },
+                    { l: '🧤 Golden Gloves',     k: 'gloves', hint: 'Update after each matchday' },
                   ].map(a => (
                     <div key={a.k}>
-                      <label className="text-slate-400 text-[10px] uppercase font-black block mb-2">{a.l}</label>
+                      <label className="text-slate-400 text-[10px] uppercase font-black block mb-1">{a.l}</label>
+                      <p className="text-slate-600 text-[9px] mb-2">{a.hint}</p>
                       <input
                         type="text"
                         className="w-full bg-slate-800 border border-slate-700 rounded-xl p-3 text-white font-bold text-sm outline-none focus:border-emerald-500 transition"
@@ -425,6 +428,15 @@ function AdminPanel({
                         value={(officialAwards as any)[a.k]}
                         onChange={e => setOfficialAwards(p => ({ ...p, [a.k]: e.target.value }))}
                       />
+                      {a.k === 'boot' && (
+                        <input
+                          type="number" min={0}
+                          className="w-full mt-2 bg-slate-800 border border-slate-700 rounded-xl p-3 text-white font-bold text-sm outline-none focus:border-emerald-500 transition"
+                          placeholder="Current goals (e.g. 5)"
+                          value={officialAwards.bootGoals || ''}
+                          onChange={e => setOfficialAwards(p => ({ ...p, bootGoals: Number(e.target.value) }))}
+                        />
+                      )}
                     </div>
                   ))}
                 </div>
@@ -1870,128 +1882,136 @@ function BumpChart({ snapshots }: { snapshots: Array<{ id: string; created_at: s
   );
 }
 
-// ─── PERSONAL MOMENTUM CARD ──────────────────────────────────────────────────
-// Shows the current user's rank, live points, delta since last snapshot,
-// and a contextual message. Requires at least 1 snapshot to render.
+// ─── NAME NORMALISER ─────────────────────────────────────────────────────────
+const PLAYER_ALIASES: Record<string, string> = {
+  'kylian mbappe':              'Kylian Mbappé',
+  'kylian mbappa':              'Kylian Mbappé',
+  'kylian mbappé':              'Kylian Mbappé',
+  'emiliano martinez':          'Emiliano Martínez',
+  'emiliano martínez':          'Emiliano Martínez',
+  'courtious':                  'Thibaut Courtois',
+  'courtois':                   'Thibaut Courtois',
+  'unai simon':                 'Unai Simón',
+  'unai simón':                 'Unai Simón',
+  'julian alverez':             'Julián Álvarez',
+  'julian alvarez':             'Julián Álvarez',
+  'julián alvarez':             'Julián Álvarez',
+  'julián álvarez':             'Julián Álvarez',
+  'julián álvarez (argentina)': 'Julián Álvarez',
+  'julian alvarez (argentina)': 'Julián Álvarez',
+  'bruno fernades':             'Bruno Fernandes',
+  'bruno fernandes':            'Bruno Fernandes',
+  'lamine yamal (spain)':       'Lamine Yamal',
+  'mike maignan (france)':      'Mike Maignan',
+  'pickford':                   'Jordan Pickford',
+  'vinicius junior':            'Vinícius Júnior',
+  'vinícius júnior':            'Vinícius Júnior',
+  'cody gakpo':                 'Cody Gakpo',
+  'harry kane':                 'Harry Kane',
+  'lionel messi':               'Lionel Messi',
+  'lamine yamal':               'Lamine Yamal',
+  'erling haaland':             'Erling Haaland',
+  'diogo costa':                'Diogo Costa',
+  'mike maignan':               'Mike Maignan',
+  'alisson becker':             'Alisson Becker',
+  'bart verbruggen':            'Bart Verbruggen',
+  'julian alvarez':             'Julián Álvarez',
+};
+function normalizeName(raw: string): string {
+  if (!raw) return '';
+  return PLAYER_ALIASES[raw.trim().toLowerCase()] ?? raw.trim();
+}
+
+type AwardPick = {
+  bracketName:   string;
+  golden_boot:   string;
+  golden_ball:   string;
+  golden_gloves: string;
+};
+
+// ─── PERSONAL MOMENTUM CARD ───────────────────────────────────────────────────
 function PersonalMomentumCard({
-  bracketName,
-  snapshots,
-  livePoints,
+  bracketName, snapshots,
 }: {
   bracketName: string;
   snapshots: Array<{ id: string; created_at: string; label: string; scores: Record<string, number> }>;
-  livePoints: number;
 }) {
   if (snapshots.length === 0) return null;
-
-  const latest = snapshots[snapshots.length - 1];
-  const prev   = snapshots.length >= 2 ? snapshots[snapshots.length - 2] : null;
-
+  const latest   = snapshots[snapshots.length - 1];
+  const prev     = snapshots.length >= 2 ? snapshots[snapshots.length - 2] : null;
   const myLatest = latest.scores[bracketName] ?? 0;
   const myPrev   = prev ? (prev.scores[bracketName] ?? 0) : null;
   const delta    = myPrev !== null ? myLatest - myPrev : null;
-
-  // Rank among all participants in latest snapshot
-  const sortedLatest = Object.entries(latest.scores).sort((a, b) => b[1] - a[1]);
-  const myRank = sortedLatest.findIndex(([n]) => n === bracketName) + 1;
-  const total  = sortedLatest.length;
-
+  const sorted   = Object.entries(latest.scores).sort((a, b) => b[1] - a[1]);
+  const myRank   = sorted.findIndex(([n]) => n === bracketName) + 1;
+  const total    = sorted.length;
   const isGaining  = delta !== null && delta > 0;
   const isDropping = delta !== null && delta < 0;
-  const isSteady   = delta !== null && delta === 0;
-
-  const getMessage = () => {
-    if (delta === null) return { text: `You're ranked #${myRank} of ${total}. More snapshots coming!`, color: 'text-slate-400' };
-    if (delta >= 6)  return { text: `🔥 On fire! You gained ${delta} pts since the last snapshot.`, color: 'text-amber-400' };
-    if (delta >= 2)  return { text: `📈 Moving up — +${delta} pts since ${prev?.label}.`, color: 'text-emerald-400' };
-    if (delta === 0) return { text: `Holding steady at #${myRank}. The next round could shake things up.`, color: 'text-slate-400' };
-    if (delta <= -4) return { text: `Others pulled ahead. You're down ${Math.abs(delta)} pts since ${prev?.label}.`, color: 'text-red-400' };
-    return { text: `Down ${Math.abs(delta)} pts since ${prev?.label}. Still plenty to play for!`, color: 'text-orange-400' };
-  };
-
-  const { text: msg, color: msgColor } = getMessage();
-
   const percentile = total > 1 ? Math.round(((total - myRank) / (total - 1)) * 100) : 100;
   const barWidth   = Math.round((myLatest / 72) * 100);
-
+  const getMessage = () => {
+    if (delta === null) return { text: `You're ranked #${myRank} of ${total}. More snapshots coming!`, color: 'text-slate-400' };
+    if (delta >= 6)  return { text: `🔥 On fire! +${delta} pts since the last snapshot.`, color: 'text-amber-400' };
+    if (delta >= 2)  return { text: `📈 Moving up — +${delta} pts since ${prev?.label}.`, color: 'text-emerald-400' };
+    if (delta === 0) return { text: `Holding steady at #${myRank}. Next round could shake things up.`, color: 'text-slate-400' };
+    if (delta <= -4) return { text: `Others pulled ahead. Down ${Math.abs(delta)} pts since ${prev?.label}.`, color: 'text-red-400' };
+    return { text: `Down ${Math.abs(delta)} pts since ${prev?.label}. Still plenty to play for!`, color: 'text-orange-400' };
+  };
+  const { text: msg, color: msgColor } = getMessage();
   return (
-    <div className="relative overflow-hidden bg-slate-950 border border-white/10 rounded-[2rem] p-6 md:p-8 shadow-2xl">
-      {/* Subtle animated glow behind the card when gaining */}
+    <div className="relative overflow-hidden bg-slate-950 border border-white/10 rounded-[2rem] p-6 shadow-2xl">
       {isGaining && (
         <div className="absolute inset-0 rounded-[2rem] pointer-events-none"
-          style={{ background: 'radial-gradient(ellipse at 50% 0%, rgba(16,185,129,0.08) 0%, transparent 70%)' }} />
+          style={{ background: 'radial-gradient(ellipse at 50% 0%,rgba(16,185,129,0.08) 0%,transparent 70%)' }} />
       )}
-
-      {/* Header row */}
       <div className="flex items-start justify-between gap-4 mb-5">
         <div>
           <span className="inline-flex items-center gap-1.5 bg-blue-500/20 border border-blue-500/30 text-blue-400 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest mb-2">
             <Zap size={10} /> Your Momentum
           </span>
-          <h3 className="text-white text-xl font-black italic tracking-tight truncate max-w-xs">
-            {bracketName}
-          </h3>
+          <h3 className="text-white text-xl font-black italic tracking-tight truncate max-w-xs">{bracketName}</h3>
           <p className={`text-xs font-bold mt-0.5 ${msgColor}`}>{msg}</p>
         </div>
-
-        {/* Big rank badge */}
         <div className="flex-shrink-0 bg-white/5 border border-white/10 rounded-2xl px-5 py-3 text-center">
           <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Rank</p>
           <p className="text-3xl font-black text-white leading-none mt-1">#{myRank}</p>
           <p className="text-[9px] text-slate-500 font-bold mt-0.5">of {total}</p>
         </div>
       </div>
-
-      {/* Stats row */}
       <div className="grid grid-cols-3 gap-3 mb-5">
-        {/* Live pts */}
         <div className="bg-white/5 rounded-2xl p-4 text-center">
           <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1">Live Pts</p>
           <p className="text-2xl font-black text-blue-400">{myLatest}</p>
           <p className="text-[9px] text-slate-600 font-bold">/ 72</p>
         </div>
-
-        {/* Delta since last snapshot */}
         <div className="bg-white/5 rounded-2xl p-4 text-center">
           <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1">Since Last</p>
-          {delta === null ? (
-            <p className="text-2xl font-black text-slate-600">—</p>
-          ) : (
+          {delta === null ? <p className="text-2xl font-black text-slate-600">—</p> : (
             <p className={`text-2xl font-black flex items-center justify-center gap-0.5 ${isGaining ? 'text-emerald-400' : isDropping ? 'text-red-400' : 'text-slate-500'}`}>
-              {isGaining && <TrendingUp size={16} />}
-              {isDropping && <TrendingDown size={16} />}
+              {isGaining && <TrendingUp size={16} />}{isDropping && <TrendingDown size={16} />}
               {delta > 0 ? `+${delta}` : delta}
             </p>
           )}
           <p className="text-[9px] text-slate-600 font-bold">pts</p>
         </div>
-
-        {/* Percentile */}
         <div className="bg-white/5 rounded-2xl p-4 text-center">
           <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1">Top</p>
-          <p className={`text-2xl font-black ${percentile >= 75 ? 'text-amber-400' : percentile >= 50 ? 'text-blue-400' : 'text-slate-400'}`}>
-            {percentile}%
-          </p>
+          <p className={`text-2xl font-black ${percentile >= 75 ? 'text-amber-400' : percentile >= 50 ? 'text-blue-400' : 'text-slate-400'}`}>{percentile}%</p>
           <p className="text-[9px] text-slate-600 font-bold">of players</p>
         </div>
       </div>
-
-      {/* Points progress bar */}
       <div>
         <div className="flex justify-between items-center mb-1.5">
           <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Group Stage Progress</p>
           <p className="text-[9px] font-black text-slate-400">{myLatest} / 72 pts</p>
         </div>
         <div className="h-2 bg-white/5 rounded-full overflow-hidden">
-          <div
-            className="h-full rounded-full transition-all duration-700"
-            style={{
-              width: `${barWidth}%`,
-              background: barWidth >= 70 ? 'linear-gradient(90deg,#10b981,#34d399)' :
-                          barWidth >= 40 ? 'linear-gradient(90deg,#3b82f6,#60a5fa)' :
-                                          'linear-gradient(90deg,#64748b,#94a3b8)',
-            }}
-          />
+          <div className="h-full rounded-full transition-all duration-700" style={{
+            width: `${barWidth}%`,
+            background: barWidth >= 70 ? 'linear-gradient(90deg,#10b981,#34d399)' :
+                        barWidth >= 40 ? 'linear-gradient(90deg,#3b82f6,#60a5fa)' :
+                                        'linear-gradient(90deg,#64748b,#94a3b8)',
+          }} />
         </div>
         <div className="flex justify-between mt-1">
           <p className="text-[9px] text-slate-600 font-bold">0</p>
@@ -2003,33 +2023,23 @@ function PersonalMomentumCard({
 }
 
 // ─── CLOSEST RIVAL CARD ───────────────────────────────────────────────────────
-// Finds the participant nearest to bracketName in the latest snapshot.
-function ClosestRivalCard({
-  bracketName,
-  snapshots,
-}: {
+function ClosestRivalCard({ bracketName, snapshots }: {
   bracketName: string;
   snapshots: Array<{ id: string; created_at: string; label: string; scores: Record<string, number> }>;
 }) {
   if (snapshots.length === 0) return null;
-
   const latest = snapshots[snapshots.length - 1];
   const myPts  = latest.scores[bracketName] ?? 0;
-
   const sorted = Object.entries(latest.scores)
     .filter(([n]) => n !== bracketName)
     .sort((a, b) => Math.abs(a[1] - myPts) - Math.abs(b[1] - myPts));
-
   if (sorted.length === 0) return null;
-
   const [rivalName, rivalPts] = sorted[0];
-  const diff   = rivalPts - myPts; // positive = rival is ahead
-  const ahead  = diff > 0;
-  const behind = diff < 0;
-  const tied   = diff === 0;
-
+  const diff  = rivalPts - myPts;
+  const ahead = diff > 0;
+  const tied  = diff === 0;
   return (
-    <div className="relative overflow-hidden bg-white border-2 border-slate-200 rounded-[2rem] p-6 shadow-sm">
+    <div className="bg-white border-2 border-slate-200 rounded-[2rem] p-6 shadow-sm flex flex-col">
       <div className="flex items-center gap-2 mb-4">
         <div className="bg-rose-100 p-2 rounded-xl"><Swords size={14} className="text-rose-600" /></div>
         <div>
@@ -2037,23 +2047,17 @@ function ClosestRivalCard({
           <p className="text-xs font-black text-slate-600">Battle to watch 👀</p>
         </div>
       </div>
-
-      <div className="flex items-center justify-between gap-4">
-        {/* You */}
+      <div className="flex items-center justify-between gap-4 flex-1">
         <div className="flex-1 text-center">
           <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">You</p>
           <p className="font-black text-slate-800 text-sm truncate">{bracketName.split(' ')[0]}</p>
           <p className="text-2xl font-black text-blue-600 mt-1">{myPts}</p>
           <p className="text-[9px] text-slate-400 font-bold">pts</p>
         </div>
-
-        {/* VS badge */}
         <div className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center text-[10px] font-black
-          ${tied ? 'bg-slate-200 text-slate-600' : ahead ? 'bg-blue-600 text-white' : 'bg-rose-100 text-rose-600'}`}>
-          {tied ? '=' : ahead ? '▲' : '▼'}
+          ${tied ? 'bg-slate-200 text-slate-600' : !ahead ? 'bg-blue-600 text-white' : 'bg-rose-100 text-rose-600'}`}>
+          {tied ? '=' : !ahead ? '▲' : '▼'}
         </div>
-
-        {/* Rival */}
         <div className="flex-1 text-center">
           <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Rival</p>
           <p className="font-black text-slate-800 text-sm truncate">{rivalName.split(' ')[0]}</p>
@@ -2061,59 +2065,42 @@ function ClosestRivalCard({
           <p className="text-[9px] text-slate-400 font-bold">pts</p>
         </div>
       </div>
-
       <div className={`mt-4 text-center text-xs font-black rounded-xl py-2 px-4
-        ${tied    ? 'bg-slate-100 text-slate-600' :
-          behind  ? 'bg-emerald-50 text-emerald-700' :
-                    'bg-rose-50 text-rose-700'}`}>
-        {tied   ? `Dead heat with ${rivalName.split(' ')[0]}! Next correct pick wins it.` :
-         behind ? `You're ${Math.abs(diff)} pts ahead — ${rivalName.split(' ')[0]} is chasing.` :
-                  `${rivalName.split(' ')[0]} leads by ${Math.abs(diff)} pts — one right call closes it.`}
+        ${tied ? 'bg-slate-100 text-slate-600' : !ahead ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'}`}>
+        {tied   ? `Dead heat with ${rivalName.split(' ')[0]}! Next correct pick wins it.`
+        : !ahead ? `You're ${Math.abs(diff)} pts ahead — ${rivalName.split(' ')[0]} is chasing.`
+                 : `${rivalName.split(' ')[0]} leads by ${Math.abs(diff)} pts — one right call closes it.`}
       </div>
     </div>
   );
 }
 
 // ─── BIGGEST MOVER CARD ───────────────────────────────────────────────────────
-// Shows who gained the most (and lost the most) between the last two snapshots.
-function BiggestMoverCard({
-  snapshots,
-}: {
+function BiggestMoverCard({ snapshots }: {
   snapshots: Array<{ id: string; created_at: string; label: string; scores: Record<string, number> }>;
 }) {
   if (snapshots.length < 2) return null;
-
   const latest = snapshots[snapshots.length - 1];
   const prev   = snapshots[snapshots.length - 2];
-
   const deltas = Object.entries(latest.scores).map(([name, pts]) => ({
-    name,
-    delta: pts - (prev.scores[name] ?? 0),
-    pts,
+    name, delta: pts - (prev.scores[name] ?? 0), pts,
   }));
-
   const topGainer  = [...deltas].sort((a, b) => b.delta - a.delta)[0];
   const topDropper = [...deltas].sort((a, b) => a.delta - b.delta)[0];
-
   if (!topGainer || topGainer.delta === 0) return null;
-
   return (
-    <div className="bg-white border-2 border-slate-200 rounded-[2rem] p-6 shadow-sm">
+    <div className="bg-white border-2 border-slate-200 rounded-[2rem] p-6 shadow-sm flex flex-col">
       <div className="flex items-center gap-2 mb-4">
         <div className="bg-amber-100 p-2 rounded-xl"><Flame size={14} className="text-amber-600" /></div>
         <div>
           <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Today's Movers</p>
-          <p className="text-xs font-black text-slate-600">Since {prev.label} → {latest.label}</p>
+          <p className="text-xs font-black text-slate-600">{prev.label} → {latest.label}</p>
         </div>
       </div>
-
-      <div className="space-y-3">
-        {/* Top gainer */}
+      <div className="space-y-3 flex-1">
         <div className="flex items-center justify-between bg-emerald-50 border border-emerald-200 rounded-2xl px-4 py-3">
           <div className="flex items-center gap-3">
-            <div className="bg-emerald-500 text-white w-7 h-7 rounded-xl flex items-center justify-center flex-shrink-0">
-              <TrendingUp size={13} />
-            </div>
+            <div className="bg-emerald-500 text-white w-7 h-7 rounded-xl flex items-center justify-center flex-shrink-0"><TrendingUp size={13} /></div>
             <div>
               <p className="text-[9px] font-black text-emerald-600 uppercase tracking-widest">Biggest Jump</p>
               <p className="font-black text-slate-800 text-sm">{topGainer.name}</p>
@@ -2124,14 +2111,10 @@ function BiggestMoverCard({
             <p className="text-[9px] text-slate-400 font-bold">{topGainer.pts} total</p>
           </div>
         </div>
-
-        {/* Top dropper — only show if they actually dropped */}
         {topDropper.delta < 0 && topDropper.name !== topGainer.name && (
           <div className="flex items-center justify-between bg-rose-50 border border-rose-100 rounded-2xl px-4 py-3">
             <div className="flex items-center gap-3">
-              <div className="bg-rose-400 text-white w-7 h-7 rounded-xl flex items-center justify-center flex-shrink-0">
-                <TrendingDown size={13} />
-              </div>
+              <div className="bg-rose-400 text-white w-7 h-7 rounded-xl flex items-center justify-center flex-shrink-0"><TrendingDown size={13} /></div>
               <div>
                 <p className="text-[9px] font-black text-rose-500 uppercase tracking-widest">Fell Behind</p>
                 <p className="font-black text-slate-800 text-sm">{topDropper.name}</p>
@@ -2144,6 +2127,332 @@ function BiggestMoverCard({
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+// ─── GOLDEN AWARD CARD ────────────────────────────────────────────────────────
+// Full transparency — every participant's pick is visible to everyone.
+// Shows: current leader, who picked them (ALL names, no truncation),
+// and a full expandable breakdown of every player picked and who chose them.
+function GoldenAwardCard({
+  emoji, title, leader, subLabel, allPicks, pickKey, locked,
+}: {
+  emoji: string; title: string; leader: string; subLabel: string;
+  allPicks: AwardPick[]; pickKey: keyof Omit<AwardPick, 'bracketName'>; locked?: boolean;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const normalizedLeader = normalizeName(leader);
+
+  // Group all picks by normalised player name
+  const picksByPlayer: Record<string, string[]> = {};
+  allPicks.forEach(p => {
+    const raw = p[pickKey] as string;
+    const n   = normalizeName(raw);
+    if (!n) return;
+    if (!picksByPlayer[n]) picksByPlayer[n] = [];
+    picksByPlayer[n].push(p.bracketName);
+  });
+
+  // Sort by most picked → fewest
+  const ranked = Object.entries(picksByPlayer).sort((a, b) => b[1].length - a[1].length);
+  const total  = allPicks.filter(p => (p[pickKey] as string)).length;
+
+  // Who currently wins (picked the leader)
+  const correctPickers = normalizedLeader ? (picksByPlayer[normalizedLeader] || []) : [];
+
+  return (
+    <div className="bg-white border-2 border-slate-200 rounded-[2rem] overflow-hidden shadow-sm flex flex-col">
+      {/* Card body */}
+      <div className="p-6 flex flex-col gap-4">
+
+        {/* Header */}
+        <div className="flex items-start justify-between gap-2">
+          <div>
+            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">{title}</p>
+            <div className="flex items-center gap-2">
+              <span className="text-2xl">{emoji}</span>
+              <div>
+                <p className="font-black text-slate-900 text-base leading-tight">
+                  {locked ? '???' : (normalizedLeader || '—')}
+                </p>
+                <p className="text-[10px] text-slate-400 font-bold">
+                  {locked ? 'Awarded at finale' : subLabel}
+                </p>
+              </div>
+            </div>
+          </div>
+          {locked && (
+            <div className="bg-slate-100 border border-slate-200 rounded-xl px-2.5 py-1 flex items-center gap-1 flex-shrink-0">
+              <Lock size={10} className="text-slate-400" />
+              <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Locked</span>
+            </div>
+          )}
+        </div>
+
+        {/* Who wins if leader holds — ALL names, no truncation */}
+        {!locked && normalizedLeader && (
+          <div>
+            <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2">
+              {correctPickers.length > 0
+                ? `✅ ${correctPickers.length} colleague${correctPickers.length !== 1 ? 's' : ''} win if ${normalizedLeader} holds`
+                : '😬 Nobody picked this — surprise winner incoming!'}
+            </p>
+            {correctPickers.length > 0 && (
+              <div className="flex flex-wrap gap-1.5">
+                {correctPickers.map(name => (
+                  <span key={name} className="bg-emerald-50 border border-emerald-200 text-emerald-700 text-[9px] font-black px-2.5 py-1 rounded-lg">
+                    {name}
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Divider */}
+        <div className="border-t border-slate-100" />
+
+        {/* Top bar chart summary */}
+        <div>
+          <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">
+            Pick distribution · {total} responses
+          </p>
+          <div className="space-y-2">
+            {ranked.slice(0, 3).map(([name, pickers], idx) => {
+              const isLeading = name === normalizedLeader && !locked;
+              const pct       = Math.round((pickers.length / total) * 100);
+              return (
+                <div key={name}>
+                  <div className="flex items-center justify-between mb-0.5">
+                    <span className={`text-[10px] font-black truncate max-w-[160px] flex items-center gap-1 ${isLeading ? 'text-emerald-700' : 'text-slate-700'}`}>
+                      {isLeading && <span className="text-[8px]">🔥</span>}{name}
+                    </span>
+                    <span className="text-[9px] font-black text-slate-400 tabular-nums">{pickers.length}/{total}</span>
+                  </div>
+                  <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                    <div className="h-full rounded-full transition-all duration-700" style={{
+                      width: `${pct}%`,
+                      background: isLeading
+                        ? 'linear-gradient(90deg,#10b981,#34d399)'
+                        : idx === 0 ? 'linear-gradient(90deg,#3b82f6,#60a5fa)' : '#e2e8f0',
+                    }} />
+                  </div>
+                </div>
+              );
+            })}
+            {ranked.length > 3 && !expanded && (
+              <p className="text-[9px] text-slate-400 font-bold">+{ranked.length - 3} more players picked below</p>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Expand / collapse toggle */}
+      <button
+        onClick={() => setExpanded(e => !e)}
+        className="flex items-center justify-between w-full px-6 py-3 bg-slate-50 hover:bg-slate-100 border-t border-slate-100 transition text-left"
+      >
+        <span className="text-[10px] font-black text-slate-600 uppercase tracking-widest">
+          {expanded ? 'Hide full breakdown' : `Show all ${total} picks — who chose what`}
+        </span>
+        <ChevronRight size={14} className={`text-slate-400 transition-transform duration-200 ${expanded ? 'rotate-90' : ''}`} />
+      </button>
+
+      {/* Full breakdown — every player, every picker, fully visible */}
+      {expanded && (
+        <div className="px-6 pb-6 pt-2 space-y-4 border-t border-slate-100 bg-slate-50">
+          {ranked.map(([playerName, pickers]) => {
+            const isLeading = playerName === normalizedLeader && !locked;
+            return (
+              <div key={playerName} className={`rounded-2xl border-2 overflow-hidden ${isLeading ? 'border-emerald-300 bg-white' : 'border-slate-200 bg-white'}`}>
+                {/* Player header row */}
+                <div className={`flex items-center justify-between px-4 py-3 ${isLeading ? 'bg-emerald-50' : 'bg-slate-50'}`}>
+                  <div className="flex items-center gap-2">
+                    {isLeading && <span className="text-sm">🔥</span>}
+                    <span className={`font-black text-sm ${isLeading ? 'text-emerald-800' : 'text-slate-800'}`}>
+                      {playerName}
+                    </span>
+                    {isLeading && (
+                      <span className="bg-emerald-500 text-white text-[8px] font-black px-2 py-0.5 rounded-full uppercase tracking-widest">
+                        Current Leader
+                      </span>
+                    )}
+                  </div>
+                  <span className={`text-[10px] font-black px-2.5 py-1 rounded-lg ${isLeading ? 'bg-emerald-200 text-emerald-800' : 'bg-slate-200 text-slate-600'}`}>
+                    {pickers.length} pick{pickers.length !== 1 ? 's' : ''}
+                  </span>
+                </div>
+                {/* All pickers — every name, no limit */}
+                <div className="px-4 py-3 flex flex-wrap gap-1.5">
+                  {pickers.map(name => (
+                    <span
+                      key={name}
+                      className={`text-[10px] font-black px-2.5 py-1 rounded-lg border ${
+                        isLeading
+                          ? 'bg-emerald-50 border-emerald-200 text-emerald-700'
+                          : 'bg-slate-50 border-slate-200 text-slate-600'
+                      }`}
+                    >
+                      {name}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+          {/* Participants who didn't fill this award */}
+          {(() => {
+            const didntPick = allPicks
+              .filter(p => !normalizeName(p[pickKey] as string))
+              .map(p => p.bracketName);
+            if (didntPick.length === 0) return null;
+            return (
+              <div className="rounded-2xl border-2 border-slate-100 bg-white overflow-hidden">
+                <div className="flex items-center justify-between px-4 py-3 bg-slate-50">
+                  <span className="font-black text-sm text-slate-400 italic">No pick entered</span>
+                  <span className="text-[10px] font-black px-2.5 py-1 rounded-lg bg-slate-200 text-slate-500">{didntPick.length}</span>
+                </div>
+                <div className="px-4 py-3 flex flex-wrap gap-1.5">
+                  {didntPick.map(name => (
+                    <span key={name} className="text-[10px] font-black px-2.5 py-1 rounded-lg border border-slate-100 bg-slate-50 text-slate-400">{name}</span>
+                  ))}
+                </div>
+              </div>
+            );
+          })()}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── GOLDEN AWARDS RACE ───────────────────────────────────────────────────────
+function GoldenAwardsRace({ bracketName }: { bracketName: string }) {
+  const [allPicks, setAllPicks] = useState<AwardPick[]>([]);
+  const [leaders, setLeaders]   = useState({ boot: '', bootGoals: 0, ball: '', gloves: '' });
+  const [loading, setLoading]   = useState(true);
+
+  useEffect(() => {
+    const load = async () => {
+      setLoading(true);
+      const { data: subs } = await supabase
+        .from('submissions')
+        .select('bracket_name, golden_boot, golden_ball, golden_gloves');
+      setAllPicks((subs || []).map(s => ({
+        bracketName:   s.bracket_name  || '',
+        golden_boot:   s.golden_boot   || '',
+        golden_ball:   s.golden_ball   || '',
+        golden_gloves: s.golden_gloves || '',
+      })));
+      const { data: off } = await supabase
+        .from('official_results')
+        .select('golden_boot, golden_ball, golden_gloves, boot_goals')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      setLeaders({
+        boot:      off?.golden_boot || '',
+        bootGoals: off?.boot_goals  || 0,
+        ball:      off?.golden_ball || '',
+        gloves:    off?.golden_gloves || '',
+      });
+      setLoading(false);
+    };
+    load();
+  }, []);
+
+  const me            = allPicks.find(p => p.bracketName === bracketName);
+  const myBoot        = normalizeName(me?.golden_boot   || '');
+  const myBall        = normalizeName(me?.golden_ball   || '');
+  const myGloves      = normalizeName(me?.golden_gloves || '');
+  const myBootMatch   = !!leaders.boot   && myBoot   === normalizeName(leaders.boot);
+  const myBallMatch   = !!leaders.ball   && myBall   === normalizeName(leaders.ball);
+  const myGlovesMatch = !!leaders.gloves && myGloves === normalizeName(leaders.gloves);
+  const myMatchCount  = [myBootMatch, myBallMatch, myGlovesMatch].filter(Boolean).length;
+
+  if (loading) return (
+    <div className="flex items-center justify-center py-12 gap-2 text-slate-400">
+      <RefreshCw size={14} className="animate-spin" />
+      <span className="text-xs font-bold">Loading awards...</span>
+    </div>
+  );
+
+  return (
+    <div className="space-y-5">
+      <div>
+        <span className="inline-flex items-center gap-1.5 bg-amber-500/20 border border-amber-500/30 text-amber-600 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest mb-2">
+          <Star size={10} /> Golden Awards Race
+        </span>
+        <h3 className="text-slate-900 text-xl font-black italic tracking-tight">Who's winning the awards?</h3>
+        <p className="text-slate-400 text-xs mt-0.5">
+          Boot updates after each matchday · Tap any card to see the full pick breakdown
+        </p>
+      </div>
+
+      {/* Personal status banner */}
+      {(leaders.boot || leaders.ball || leaders.gloves) && (
+        <div className={`rounded-2xl px-5 py-4 border-2 flex items-center gap-4 ${
+          myMatchCount === 3 ? 'bg-emerald-50 border-emerald-300' :
+          myMatchCount >= 1 ? 'bg-blue-50 border-blue-200' :
+                              'bg-slate-50 border-slate-200'
+        }`}>
+          <span className="text-2xl flex-shrink-0">
+            {myMatchCount === 3 ? '🏆' : myMatchCount >= 1 ? '⚡' : '😬'}
+          </span>
+          <div>
+            <p className={`font-black text-sm ${myMatchCount >= 1 ? 'text-slate-800' : 'text-slate-500'}`}>
+              {myMatchCount === 3 ? 'You called all 3 awards correctly so far — incredible!' :
+               myMatchCount === 2 ? 'You\'re on track for 2 of 3 awards (+10 bonus pts)' :
+               myMatchCount === 1 ? 'You\'ve got 1 award correct so far (+5 bonus pts if it holds)' :
+               'None of your award picks are leading yet — tournament has a long way to go!'}
+            </p>
+            <div className="flex gap-2 mt-1.5 flex-wrap">
+              {[
+                { label: '🏅 Ball',   match: myBallMatch,   pick: myBall   },
+                { label: '👟 Boot',   match: myBootMatch,   pick: myBoot   },
+                { label: '🧤 Gloves', match: myGlovesMatch, pick: myGloves },
+              ].map(({ label, match, pick }) => (
+                <span key={label} className={`text-[9px] font-black px-2 py-0.5 rounded-lg ${match ? 'bg-emerald-200 text-emerald-800' : 'bg-slate-200 text-slate-500'}`}>
+                  {label}: {pick || '—'} {match ? '✓' : ''}
+                </span>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {!leaders.boot && !leaders.ball && !leaders.gloves && (
+        <div className="bg-amber-50 border-2 border-amber-200 rounded-2xl px-5 py-4 text-sm text-amber-700 font-bold flex items-center gap-3">
+          <Info size={16} className="flex-shrink-0" />
+          Admin hasn't set the current award leaders yet. Check back after the next matchday.
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+        <GoldenAwardCard
+          emoji="👟" title="Golden Boot"
+          leader={leaders.boot}
+          subLabel={leaders.bootGoals ? `${leaders.bootGoals} goal${leaders.bootGoals !== 1 ? 's' : ''} · Group Stage` : 'Group Stage'}
+          allPicks={allPicks} pickKey="golden_boot" locked={false}
+        />
+        <GoldenAwardCard
+          emoji="🧤" title="Golden Gloves"
+          leader={leaders.gloves}
+          subLabel="Best keeper · Group Stage"
+          allPicks={allPicks} pickKey="golden_gloves" locked={!leaders.gloves}
+        />
+        <GoldenAwardCard
+          emoji="🏅" title="Golden Ball (MVP)"
+          leader={leaders.ball}
+          subLabel="Tournament MVP"
+          allPicks={allPicks} pickKey="golden_ball" locked={!leaders.ball}
+        />
+      </div>
+
+      <p className="text-[10px] text-slate-400 font-bold text-center">
+        ⚡ Boot leader updated after each matchday · Gloves & Ball confirmed at finale · Each correct pick = +5 pts
+      </p>
     </div>
   );
 }
@@ -2386,28 +2695,19 @@ function LiveTracker({ bracketName, isAdmin, getTeam, toast }: {
         </div>
       )}
 
-      {/* ── Engagement Cards Row ── */}
+      {/* ── Engagement Cards ── */}
       {snapshots.length > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-          {/* Personal Momentum — spans full width on mobile, 1 col on md */}
-          <div className="md:col-span-1">
-            <PersonalMomentumCard
-              bracketName={bracketName}
-              snapshots={snapshots}
-              livePoints={livePoints}
-            />
-          </div>
-          <div className="md:col-span-1">
-            <ClosestRivalCard
-              bracketName={bracketName}
-              snapshots={snapshots}
-            />
-          </div>
-          <div className="md:col-span-1">
-            <BiggestMoverCard snapshots={snapshots} />
-          </div>
+          <PersonalMomentumCard bracketName={bracketName} snapshots={snapshots} />
+          <ClosestRivalCard     bracketName={bracketName} snapshots={snapshots} />
+          <BiggestMoverCard     snapshots={snapshots} />
         </div>
       )}
+
+      {/* ── Golden Awards Race ── */}
+      <div className="bg-white border-2 border-slate-200 rounded-[2rem] p-6 md:p-8 shadow-sm">
+        <GoldenAwardsRace bracketName={bracketName} />
+      </div>
 
       {/* ── Bump Chart (visible to all) ── */}
       {snapshots.length > 0 && (
@@ -2433,6 +2733,7 @@ function LiveTracker({ bracketName, isAdmin, getTeam, toast }: {
         </div>
       )}
 
+      {/* ── Group Cards ── */}
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-5">
         {Object.entries(GROUPS_DATA).map(([gid, g]: any) => {
           const groupLive = live[gid] || {};
