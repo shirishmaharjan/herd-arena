@@ -3,7 +3,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import {
   Trophy, Check, Award, Info, ShieldCheck, Save, ArrowRight,
   Database, Star, Search, Users, Lock, Unlock, ChevronUp, ChevronDown,
-  Zap, Target, Crown, Medal, RefreshCw, X, AlertCircle, CheckCircle2, Download
+  Zap, Target, Crown, Medal, RefreshCw, X, AlertCircle, CheckCircle2, Download,
+  TrendingUp, TrendingDown, Flame, Swords
 } from 'lucide-react';
 import { GROUPS_DATA, BRACKET_MAPPING } from '../constants/teams';
 import { supabase } from '../lib/supabase';
@@ -1869,6 +1870,284 @@ function BumpChart({ snapshots }: { snapshots: Array<{ id: string; created_at: s
   );
 }
 
+// ─── PERSONAL MOMENTUM CARD ──────────────────────────────────────────────────
+// Shows the current user's rank, live points, delta since last snapshot,
+// and a contextual message. Requires at least 1 snapshot to render.
+function PersonalMomentumCard({
+  bracketName,
+  snapshots,
+  livePoints,
+}: {
+  bracketName: string;
+  snapshots: Array<{ id: string; created_at: string; label: string; scores: Record<string, number> }>;
+  livePoints: number;
+}) {
+  if (snapshots.length === 0) return null;
+
+  const latest = snapshots[snapshots.length - 1];
+  const prev   = snapshots.length >= 2 ? snapshots[snapshots.length - 2] : null;
+
+  const myLatest = latest.scores[bracketName] ?? 0;
+  const myPrev   = prev ? (prev.scores[bracketName] ?? 0) : null;
+  const delta    = myPrev !== null ? myLatest - myPrev : null;
+
+  // Rank among all participants in latest snapshot
+  const sortedLatest = Object.entries(latest.scores).sort((a, b) => b[1] - a[1]);
+  const myRank = sortedLatest.findIndex(([n]) => n === bracketName) + 1;
+  const total  = sortedLatest.length;
+
+  const isGaining  = delta !== null && delta > 0;
+  const isDropping = delta !== null && delta < 0;
+  const isSteady   = delta !== null && delta === 0;
+
+  const getMessage = () => {
+    if (delta === null) return { text: `You're ranked #${myRank} of ${total}. More snapshots coming!`, color: 'text-slate-400' };
+    if (delta >= 6)  return { text: `🔥 On fire! You gained ${delta} pts since the last snapshot.`, color: 'text-amber-400' };
+    if (delta >= 2)  return { text: `📈 Moving up — +${delta} pts since ${prev?.label}.`, color: 'text-emerald-400' };
+    if (delta === 0) return { text: `Holding steady at #${myRank}. The next round could shake things up.`, color: 'text-slate-400' };
+    if (delta <= -4) return { text: `Others pulled ahead. You're down ${Math.abs(delta)} pts since ${prev?.label}.`, color: 'text-red-400' };
+    return { text: `Down ${Math.abs(delta)} pts since ${prev?.label}. Still plenty to play for!`, color: 'text-orange-400' };
+  };
+
+  const { text: msg, color: msgColor } = getMessage();
+
+  const percentile = total > 1 ? Math.round(((total - myRank) / (total - 1)) * 100) : 100;
+  const barWidth   = Math.round((myLatest / 72) * 100);
+
+  return (
+    <div className="relative overflow-hidden bg-slate-950 border border-white/10 rounded-[2rem] p-6 md:p-8 shadow-2xl">
+      {/* Subtle animated glow behind the card when gaining */}
+      {isGaining && (
+        <div className="absolute inset-0 rounded-[2rem] pointer-events-none"
+          style={{ background: 'radial-gradient(ellipse at 50% 0%, rgba(16,185,129,0.08) 0%, transparent 70%)' }} />
+      )}
+
+      {/* Header row */}
+      <div className="flex items-start justify-between gap-4 mb-5">
+        <div>
+          <span className="inline-flex items-center gap-1.5 bg-blue-500/20 border border-blue-500/30 text-blue-400 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest mb-2">
+            <Zap size={10} /> Your Momentum
+          </span>
+          <h3 className="text-white text-xl font-black italic tracking-tight truncate max-w-xs">
+            {bracketName}
+          </h3>
+          <p className={`text-xs font-bold mt-0.5 ${msgColor}`}>{msg}</p>
+        </div>
+
+        {/* Big rank badge */}
+        <div className="flex-shrink-0 bg-white/5 border border-white/10 rounded-2xl px-5 py-3 text-center">
+          <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Rank</p>
+          <p className="text-3xl font-black text-white leading-none mt-1">#{myRank}</p>
+          <p className="text-[9px] text-slate-500 font-bold mt-0.5">of {total}</p>
+        </div>
+      </div>
+
+      {/* Stats row */}
+      <div className="grid grid-cols-3 gap-3 mb-5">
+        {/* Live pts */}
+        <div className="bg-white/5 rounded-2xl p-4 text-center">
+          <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1">Live Pts</p>
+          <p className="text-2xl font-black text-blue-400">{myLatest}</p>
+          <p className="text-[9px] text-slate-600 font-bold">/ 72</p>
+        </div>
+
+        {/* Delta since last snapshot */}
+        <div className="bg-white/5 rounded-2xl p-4 text-center">
+          <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1">Since Last</p>
+          {delta === null ? (
+            <p className="text-2xl font-black text-slate-600">—</p>
+          ) : (
+            <p className={`text-2xl font-black flex items-center justify-center gap-0.5 ${isGaining ? 'text-emerald-400' : isDropping ? 'text-red-400' : 'text-slate-500'}`}>
+              {isGaining && <TrendingUp size={16} />}
+              {isDropping && <TrendingDown size={16} />}
+              {delta > 0 ? `+${delta}` : delta}
+            </p>
+          )}
+          <p className="text-[9px] text-slate-600 font-bold">pts</p>
+        </div>
+
+        {/* Percentile */}
+        <div className="bg-white/5 rounded-2xl p-4 text-center">
+          <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1">Top</p>
+          <p className={`text-2xl font-black ${percentile >= 75 ? 'text-amber-400' : percentile >= 50 ? 'text-blue-400' : 'text-slate-400'}`}>
+            {percentile}%
+          </p>
+          <p className="text-[9px] text-slate-600 font-bold">of players</p>
+        </div>
+      </div>
+
+      {/* Points progress bar */}
+      <div>
+        <div className="flex justify-between items-center mb-1.5">
+          <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Group Stage Progress</p>
+          <p className="text-[9px] font-black text-slate-400">{myLatest} / 72 pts</p>
+        </div>
+        <div className="h-2 bg-white/5 rounded-full overflow-hidden">
+          <div
+            className="h-full rounded-full transition-all duration-700"
+            style={{
+              width: `${barWidth}%`,
+              background: barWidth >= 70 ? 'linear-gradient(90deg,#10b981,#34d399)' :
+                          barWidth >= 40 ? 'linear-gradient(90deg,#3b82f6,#60a5fa)' :
+                                          'linear-gradient(90deg,#64748b,#94a3b8)',
+            }}
+          />
+        </div>
+        <div className="flex justify-between mt-1">
+          <p className="text-[9px] text-slate-600 font-bold">0</p>
+          <p className="text-[9px] text-slate-600 font-bold">72 max</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── CLOSEST RIVAL CARD ───────────────────────────────────────────────────────
+// Finds the participant nearest to bracketName in the latest snapshot.
+function ClosestRivalCard({
+  bracketName,
+  snapshots,
+}: {
+  bracketName: string;
+  snapshots: Array<{ id: string; created_at: string; label: string; scores: Record<string, number> }>;
+}) {
+  if (snapshots.length === 0) return null;
+
+  const latest = snapshots[snapshots.length - 1];
+  const myPts  = latest.scores[bracketName] ?? 0;
+
+  const sorted = Object.entries(latest.scores)
+    .filter(([n]) => n !== bracketName)
+    .sort((a, b) => Math.abs(a[1] - myPts) - Math.abs(b[1] - myPts));
+
+  if (sorted.length === 0) return null;
+
+  const [rivalName, rivalPts] = sorted[0];
+  const diff   = rivalPts - myPts; // positive = rival is ahead
+  const ahead  = diff > 0;
+  const behind = diff < 0;
+  const tied   = diff === 0;
+
+  return (
+    <div className="relative overflow-hidden bg-white border-2 border-slate-200 rounded-[2rem] p-6 shadow-sm">
+      <div className="flex items-center gap-2 mb-4">
+        <div className="bg-rose-100 p-2 rounded-xl"><Swords size={14} className="text-rose-600" /></div>
+        <div>
+          <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Closest Rival</p>
+          <p className="text-xs font-black text-slate-600">Battle to watch 👀</p>
+        </div>
+      </div>
+
+      <div className="flex items-center justify-between gap-4">
+        {/* You */}
+        <div className="flex-1 text-center">
+          <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">You</p>
+          <p className="font-black text-slate-800 text-sm truncate">{bracketName.split(' ')[0]}</p>
+          <p className="text-2xl font-black text-blue-600 mt-1">{myPts}</p>
+          <p className="text-[9px] text-slate-400 font-bold">pts</p>
+        </div>
+
+        {/* VS badge */}
+        <div className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center text-[10px] font-black
+          ${tied ? 'bg-slate-200 text-slate-600' : ahead ? 'bg-blue-600 text-white' : 'bg-rose-100 text-rose-600'}`}>
+          {tied ? '=' : ahead ? '▲' : '▼'}
+        </div>
+
+        {/* Rival */}
+        <div className="flex-1 text-center">
+          <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Rival</p>
+          <p className="font-black text-slate-800 text-sm truncate">{rivalName.split(' ')[0]}</p>
+          <p className={`text-2xl font-black mt-1 ${ahead ? 'text-rose-500' : 'text-slate-400'}`}>{rivalPts}</p>
+          <p className="text-[9px] text-slate-400 font-bold">pts</p>
+        </div>
+      </div>
+
+      <div className={`mt-4 text-center text-xs font-black rounded-xl py-2 px-4
+        ${tied    ? 'bg-slate-100 text-slate-600' :
+          behind  ? 'bg-emerald-50 text-emerald-700' :
+                    'bg-rose-50 text-rose-700'}`}>
+        {tied   ? `Dead heat with ${rivalName.split(' ')[0]}! Next correct pick wins it.` :
+         behind ? `You're ${Math.abs(diff)} pts ahead — ${rivalName.split(' ')[0]} is chasing.` :
+                  `${rivalName.split(' ')[0]} leads by ${Math.abs(diff)} pts — one right call closes it.`}
+      </div>
+    </div>
+  );
+}
+
+// ─── BIGGEST MOVER CARD ───────────────────────────────────────────────────────
+// Shows who gained the most (and lost the most) between the last two snapshots.
+function BiggestMoverCard({
+  snapshots,
+}: {
+  snapshots: Array<{ id: string; created_at: string; label: string; scores: Record<string, number> }>;
+}) {
+  if (snapshots.length < 2) return null;
+
+  const latest = snapshots[snapshots.length - 1];
+  const prev   = snapshots[snapshots.length - 2];
+
+  const deltas = Object.entries(latest.scores).map(([name, pts]) => ({
+    name,
+    delta: pts - (prev.scores[name] ?? 0),
+    pts,
+  }));
+
+  const topGainer  = [...deltas].sort((a, b) => b.delta - a.delta)[0];
+  const topDropper = [...deltas].sort((a, b) => a.delta - b.delta)[0];
+
+  if (!topGainer || topGainer.delta === 0) return null;
+
+  return (
+    <div className="bg-white border-2 border-slate-200 rounded-[2rem] p-6 shadow-sm">
+      <div className="flex items-center gap-2 mb-4">
+        <div className="bg-amber-100 p-2 rounded-xl"><Flame size={14} className="text-amber-600" /></div>
+        <div>
+          <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Today's Movers</p>
+          <p className="text-xs font-black text-slate-600">Since {prev.label} → {latest.label}</p>
+        </div>
+      </div>
+
+      <div className="space-y-3">
+        {/* Top gainer */}
+        <div className="flex items-center justify-between bg-emerald-50 border border-emerald-200 rounded-2xl px-4 py-3">
+          <div className="flex items-center gap-3">
+            <div className="bg-emerald-500 text-white w-7 h-7 rounded-xl flex items-center justify-center flex-shrink-0">
+              <TrendingUp size={13} />
+            </div>
+            <div>
+              <p className="text-[9px] font-black text-emerald-600 uppercase tracking-widest">Biggest Jump</p>
+              <p className="font-black text-slate-800 text-sm">{topGainer.name}</p>
+            </div>
+          </div>
+          <div className="text-right">
+            <p className="text-xl font-black text-emerald-600">+{topGainer.delta}</p>
+            <p className="text-[9px] text-slate-400 font-bold">{topGainer.pts} total</p>
+          </div>
+        </div>
+
+        {/* Top dropper — only show if they actually dropped */}
+        {topDropper.delta < 0 && topDropper.name !== topGainer.name && (
+          <div className="flex items-center justify-between bg-rose-50 border border-rose-100 rounded-2xl px-4 py-3">
+            <div className="flex items-center gap-3">
+              <div className="bg-rose-400 text-white w-7 h-7 rounded-xl flex items-center justify-center flex-shrink-0">
+                <TrendingDown size={13} />
+              </div>
+              <div>
+                <p className="text-[9px] font-black text-rose-500 uppercase tracking-widest">Fell Behind</p>
+                <p className="font-black text-slate-800 text-sm">{topDropper.name}</p>
+              </div>
+            </div>
+            <div className="text-right">
+              <p className="text-xl font-black text-rose-500">{topDropper.delta}</p>
+              <p className="text-[9px] text-slate-400 font-bold">{topDropper.pts} total</p>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ─── LIVE GROUP TRACKER ───────────────────────────────────────────────────────
 // Reads the admin-maintained `live_standings` table (one row, jsonb `standings`
 // shaped exactly like prediction standings: { [groupId]: { 1: teamId, 2: teamId, 3: teamId } })
@@ -2103,6 +2382,29 @@ function LiveTracker({ bracketName, isAdmin, getTeam, toast }: {
                 ))}
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* ── Engagement Cards Row ── */}
+      {snapshots.length > 0 && (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+          {/* Personal Momentum — spans full width on mobile, 1 col on md */}
+          <div className="md:col-span-1">
+            <PersonalMomentumCard
+              bracketName={bracketName}
+              snapshots={snapshots}
+              livePoints={livePoints}
+            />
+          </div>
+          <div className="md:col-span-1">
+            <ClosestRivalCard
+              bracketName={bracketName}
+              snapshots={snapshots}
+            />
+          </div>
+          <div className="md:col-span-1">
+            <BiggestMoverCard snapshots={snapshots} />
           </div>
         </div>
       )}
