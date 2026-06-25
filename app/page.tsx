@@ -3,8 +3,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import {
   Trophy, Check, Award, Info, ShieldCheck, Save, ArrowRight,
   Database, Star, Search, Users, Lock, Unlock, ChevronUp, ChevronDown,
-  Zap, Target, Crown, Medal, RefreshCw, X, AlertCircle, CheckCircle2, Download,
-  TrendingUp, TrendingDown, Flame, Swords, ChevronRight, BarChart2
+  Zap, Target, Crown, Medal, RefreshCw, X, AlertCircle, CheckCircle2, Download
 } from 'lucide-react';
 import { GROUPS_DATA, BRACKET_MAPPING } from '../constants/teams';
 import { supabase } from '../lib/supabase';
@@ -1378,7 +1377,7 @@ export default function HerdArenaFinalMaster() {
           ) : view === 'leaderboard' ? (
             <div className="max-w-2xl mx-auto space-y-12">
 
-              {/* SECTION 1 — Group Stage */}
+              {/* SECTION 1 — Group Stage + Round of 32 */}
               <div className="bg-white border border-slate-100 rounded-[3rem] p-8 md:p-10 shadow-xl">
                 <div className="flex items-center gap-3 mb-2">
                   <div className="bg-blue-600 p-3 rounded-2xl"><Target size={20} className="text-white" /></div>
@@ -1387,12 +1386,12 @@ export default function HerdArenaFinalMaster() {
                     <p className="text-slate-400 text-xs">Group Stage</p>
                   </div>
                 </div>
-                <div className="flex flex-wrap gap-2 mb-1">
+                <div className="mb-3 flex flex-wrap items-center gap-2">
                   <span className="inline-flex items-center gap-1.5 bg-blue-50 border border-blue-100 text-blue-700 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wide">
                     Max 72 pts available
                   </span>
+                  <LastUpdatedBadge />
                 </div>
-                <LastUpdatedBadge />
                 <PointsBreakdownCard stage="group" />
                 <LeaderboardSection scoreField="group_points" label="group stage" showWinner winnerLabel="Stage 1 Leader" />
               </div>
@@ -1415,7 +1414,7 @@ export default function HerdArenaFinalMaster() {
                 <LeaderboardSection scoreField="knockout_points" label="knockout stage" cumulative showWinner winnerLabel="Stage 2 Leader" />
               </div>
 
-              {/* SECTION 3 — Final Championship */}
+              {/* SECTION 3 — Final with Player Honors */}
               <div className="bg-white border border-slate-100 rounded-[3rem] p-8 md:p-10 shadow-xl">
                 <div className="flex items-center gap-3 mb-2">
                   <div className="bg-amber-500 p-3 rounded-2xl"><Trophy size={20} className="text-white" /></div>
@@ -1457,12 +1456,15 @@ export default function HerdArenaFinalMaster() {
 }
 
 // ─── LAST UPDATED BADGE ───────────────────────────────────────────────────────
+// Reads the most recent submission's updated_at (proxy for last Recalculate run)
+// and the official_results to count how many groups have been entered.
 function LastUpdatedBadge() {
-  const [lastCalc, setLastCalc]     = useState<string | null>(null);
-  const [groupsDone, setGroupsDone] = useState(0);
+  const [lastCalc, setLastCalc]       = useState<string | null>(null);
+  const [groupsDone, setGroupsDone]   = useState(0);
 
   useEffect(() => {
     const load = async () => {
+      // Last recalculate time = most recently updated submission
       const { data: sub } = await supabase
         .from('submissions')
         .select('updated_at')
@@ -1471,15 +1473,20 @@ function LastUpdatedBadge() {
         .maybeSingle();
       if (sub?.updated_at) setLastCalc(sub.updated_at);
 
+      // Count how many groups have all 3 positions set in official_results
       const { data: off } = await supabase
         .from('official_results')
         .select('bracket_data')
         .order('created_at', { ascending: false })
         .limit(1)
         .maybeSingle();
+
       if (off?.bracket_data?.standings) {
-        const s = off.bracket_data.standings as Record<string, Record<number, string>>;
-        setGroupsDone(Object.keys(s).filter(g => [1,2,3].every(r => s[g]?.[r])).length);
+        const standings = off.bracket_data.standings as Record<string, Record<number, string>>;
+        const done = Object.keys(standings).filter(gid =>
+          [1, 2, 3].every(r => standings[gid]?.[r])
+        ).length;
+        setGroupsDone(done);
       }
     };
     load();
@@ -1487,197 +1494,27 @@ function LastUpdatedBadge() {
 
   if (!lastCalc && groupsDone === 0) return null;
 
-  const fmt = lastCalc
-    ? new Date(lastCalc).toLocaleString('en-GB', { day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' })
+  const formatted = lastCalc
+    ? new Date(lastCalc).toLocaleString('en-GB', {
+        day: 'numeric', month: 'short', year: 'numeric',
+        hour: '2-digit', minute: '2-digit',
+      })
     : null;
 
   return (
-    <div className="flex flex-wrap gap-2 items-center mt-2 mb-3">
-      {fmt && (
+    <div className="flex flex-wrap gap-2 items-center">
+      {formatted && (
         <span className="inline-flex items-center gap-1.5 bg-slate-50 border border-slate-200 text-slate-500 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wide">
-          <RefreshCw size={9} /> Last updated {fmt}
+          <RefreshCw size={9} /> Last updated {formatted}
         </span>
       )}
       {groupsDone > 0 && (
         <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wide border
-          ${groupsDone === 12 ? 'bg-emerald-50 border-emerald-200 text-emerald-700' : 'bg-amber-50 border-amber-200 text-amber-700'}`}>
+          ${groupsDone === 12
+            ? 'bg-emerald-50 border-emerald-200 text-emerald-700'
+            : 'bg-amber-50 border-amber-200 text-amber-700'}`}>
           {groupsDone === 12 ? '✅' : '⏳'} {groupsDone}/12 groups complete
         </span>
-      )}
-    </div>
-  );
-}
-
-// ─── POINTS DISTRIBUTION CHART ────────────────────────────────────────────────
-// SVG histogram showing how scores are spread across all participants.
-// Bins of 6 pts each (0-6, 6-12 ... 66-72) for group stage.
-function PointsDistributionChart({
-  list,
-  maxBin,
-  color = '#3b82f6',
-  label = 'pts',
-}: {
-  list: number[];
-  maxBin: number;
-  color?: string;
-  label?: string;
-}) {
-  if (list.length === 0) return null;
-
-  const BIN_SIZE = Math.ceil(maxBin / 10);
-  const numBins  = Math.ceil(maxBin / BIN_SIZE);
-  const bins     = Array(numBins).fill(0);
-  list.forEach(v => {
-    const idx = Math.min(Math.floor(v / BIN_SIZE), numBins - 1);
-    bins[idx]++;
-  });
-  const maxCount  = Math.max(...bins, 1);
-  const W = 480, H = 80;
-  const barW = W / numBins;
-
-  const mean   = list.reduce((a, b) => a + b, 0) / list.length;
-  const sorted = [...list].sort((a, b) => a - b);
-  const median = sorted[Math.floor(sorted.length / 2)];
-  const spread = Math.max(...list) - Math.min(...list);
-
-  return (
-    <div className="mb-5">
-      <div className="flex items-center justify-between mb-2">
-        <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
-          <BarChart2 size={10} /> Score Distribution
-        </p>
-        <div className="flex gap-3">
-          {[
-            { l: 'Avg', v: mean.toFixed(1) },
-            { l: 'Median', v: median },
-            { l: 'Spread', v: spread },
-          ].map(({ l, v }) => (
-            <span key={l} className="text-[9px] font-black text-slate-400">
-              {l}: <span className="text-slate-700">{v}</span>
-            </span>
-          ))}
-        </div>
-      </div>
-      <div className="bg-slate-50 rounded-2xl p-3 border border-slate-100">
-        <svg viewBox={`0 0 ${W} ${H}`} className="w-full" style={{ height: 64 }}>
-          {bins.map((count, i) => {
-            const bh  = (count / maxCount) * (H - 18);
-            const x   = i * barW + 2;
-            const y   = H - 14 - bh;
-            const mid = i * BIN_SIZE + BIN_SIZE / 2;
-            const isHot = count === maxCount;
-            return (
-              <g key={i}>
-                <rect
-                  x={x} y={y} width={barW - 4} height={bh}
-                  rx={3} fill={isHot ? color : color + '55'}
-                />
-                {count > 0 && (
-                  <text x={x + (barW - 4) / 2} y={y - 2} textAnchor="middle" fontSize="7" fill={isHot ? color : '#94a3b8'} fontWeight="800">
-                    {count}
-                  </text>
-                )}
-                <text x={x + (barW - 4) / 2} y={H - 2} textAnchor="middle" fontSize="7" fill="#cbd5e1" fontWeight="700">
-                  {mid}
-                </text>
-              </g>
-            );
-          })}
-          {/* Mean line */}
-          <line
-            x1={(mean / maxBin) * W} y1={0}
-            x2={(mean / maxBin) * W} y2={H - 14}
-            stroke={color} strokeWidth="1.5" strokeDasharray="3 2" opacity="0.7"
-          />
-        </svg>
-        <p className="text-[8px] text-slate-300 font-bold text-center mt-0.5">
-          Dashed line = average · Darker bar = most common score range
-        </p>
-      </div>
-    </div>
-  );
-}
-
-// ─── GAP ANALYSIS PANEL ───────────────────────────────────────────────────────
-// Shows competitive context: how close is the race, who's within striking distance.
-function GapAnalysisPanel({ list, getScore }: { list: any[]; getScore: (u: any) => number }) {
-  if (list.length < 2) return null;
-
-  const scores   = list.map(getScore);
-  const top      = scores[0];
-  const second   = scores[1];
-  const gap      = top - second;
-  const within5  = scores.filter(s => top - s <= 5).length - 1;
-  const within10 = scores.filter(s => top - s <= 10).length - 1;
-  const bottom   = scores[scores.length - 1];
-  const totalGap = top - bottom;
-
-  const drama = gap === 0
-    ? '🔥 Dead heat at the top — anyone can take it!'
-    : gap <= 2
-    ? `⚡ Just ${gap} pt${gap > 1 ? 's' : ''} separating 1st and 2nd — incredibly tight`
-    : gap <= 6
-    ? `${within5 > 0 ? `${within5} player${within5 > 1 ? 's' : ''} within 5 pts of the lead` : `${gap} pts gap at the top`}`
-    : `${list[0].bracket_name.split(' ')[0]} leads by ${gap} pts — can anyone catch up?`;
-
-  return (
-    <div className="bg-gradient-to-r from-slate-50 to-slate-100 border border-slate-200 rounded-2xl px-5 py-4 mb-4 flex flex-wrap gap-4 items-center justify-between">
-      <p className="text-xs font-black text-slate-700 flex-1">{drama}</p>
-      <div className="flex gap-4 flex-shrink-0">
-        <div className="text-center">
-          <p className="text-lg font-black text-slate-800">{within5}</p>
-          <p className="text-[8px] font-black text-slate-400 uppercase tracking-wide">within 5pts</p>
-        </div>
-        <div className="text-center">
-          <p className="text-lg font-black text-slate-800">{within10}</p>
-          <p className="text-[8px] font-black text-slate-400 uppercase tracking-wide">within 10pts</p>
-        </div>
-        <div className="text-center">
-          <p className="text-lg font-black text-slate-800">{totalGap}</p>
-          <p className="text-[8px] font-black text-slate-400 uppercase tracking-wide">top→bottom</p>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ─── STACKED SCORE BAR ────────────────────────────────────────────────────────
-// Replaces the plain progress bar with a segmented G+K+A breakdown.
-// Only shows K and A segments when they have non-zero values.
-function StackedScoreBar({
-  groupPts, knockoutPts, awardsPts, maxPts, isFirst, isFinal,
-}: {
-  groupPts: number; knockoutPts: number; awardsPts: number;
-  maxPts: number; isFirst: boolean; isFinal: boolean;
-}) {
-  const total   = isFinal ? groupPts + knockoutPts + awardsPts : groupPts;
-  const pct     = Math.round((total / Math.max(maxPts, 1)) * 100);
-  const gPct    = Math.round((groupPts   / Math.max(maxPts, 1)) * 100);
-  const kPct    = Math.round((knockoutPts / Math.max(maxPts, 1)) * 100);
-  const aPct    = Math.round((awardsPts  / Math.max(maxPts, 1)) * 100);
-  const hasK    = knockoutPts > 0;
-  const hasA    = awardsPts  > 0;
-
-  if (!isFinal) {
-    // Simple single-color bar for Stage 1 / Stage 2
-    return (
-      <div className={`absolute left-0 top-0 h-full rounded-[1.8rem] transition-all ${isFirst ? 'opacity-20 bg-blue-400' : 'opacity-10 bg-blue-600'}`}
-        style={{ width: `${pct}%` }} />
-    );
-  }
-
-  // Stacked bar for final section
-  return (
-    <div className="absolute left-0 top-0 h-full rounded-[1.8rem] overflow-hidden flex" style={{ width: `${pct}%` }}>
-      <div className={`h-full ${isFirst ? 'bg-blue-400' : 'bg-blue-500'} opacity-25`}
-        style={{ width: gPct ? `${Math.round((gPct / pct) * 100)}%` : '0%' }} />
-      {hasK && (
-        <div className={`h-full ${isFirst ? 'bg-purple-400' : 'bg-purple-500'} opacity-25`}
-          style={{ width: `${Math.round((kPct / pct) * 100)}%` }} />
-      )}
-      {hasA && (
-        <div className={`h-full ${isFirst ? 'bg-amber-400' : 'bg-amber-500'} opacity-25`}
-          style={{ width: `${Math.round((aPct / pct) * 100)}%` }} />
       )}
     </div>
   );
@@ -1702,14 +1539,14 @@ function LeaderboardSection({
   showWinner?: boolean;
   winnerLabel?: string;
 }) {
-  const [list, setList]       = useState<any[]>([]);
+  const [list, setList] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [prev, setPrev]       = useState<string[]>([]);
+  const [prev, setPrev] = useState<string[]>([]);
 
   useEffect(() => {
     supabase
       .from('submissions')
-      .select('id, bracket_name, points, group_points, knockout_points, awards_points, created_at, updated_at')
+      .select('id, bracket_name, points, group_points, knockout_points, awards_points, created_at')
       .order('points', { ascending: false })
       .then(({ data }) => {
         if (!data) { setLoading(false); return; }
@@ -1718,6 +1555,7 @@ function LeaderboardSection({
         setPrev(saved);
         localStorage.setItem(storageKey, JSON.stringify(data.map((u: any) => u.id)));
 
+        // Sort by the section-relevant field
         const sorted = [...data].sort((a, b) => {
           const aScore = cumulative
             ? ((a.group_points ?? 0) + (a.knockout_points ?? 0))
@@ -1745,127 +1583,80 @@ function LeaderboardSection({
   );
 
   const getDisplayPts = (u: any) => {
-    if (isFinal)    return u.points ?? 0;
+    if (isFinal) return u.points ?? 0;
     if (cumulative) return (u.group_points ?? 0) + (u.knockout_points ?? 0);
     return u[scoreField] ?? 0;
   };
 
-  const allScores = list.map(getDisplayPts);
-  const maxPts    = Math.max(...allScores, 1);
-  const medals    = ['🥇', '🥈', '🥉'];
-  const topEntry  = list[0];
-  const topPts    = topEntry ? getDisplayPts(topEntry) : 0;
+  const maxPts = Math.max(...list.map(u => getDisplayPts(u)), 1);
+  const medals = ['🥇', '🥈', '🥉'];
 
-  // Color palette per stage
-  const stageColor  = isFinal ? '#f59e0b' : cumulative ? '#8b5cf6' : '#3b82f6';
-  const maxBinPts   = isFinal ? 267 : cumulative ? 252 : 72;
+  const topEntry = list[0];
+  const topPts = topEntry ? getDisplayPts(topEntry) : 0;
 
   return (
     <div className="space-y-3">
-
-      {/* ── Winner Banner ── */}
       {showWinner && topEntry && topPts > 0 && (
-        <div
-          className="flex items-center gap-3 rounded-[1.5rem] px-5 py-4 mb-2 shadow-lg"
-          style={{ background: `linear-gradient(135deg, ${stageColor}dd, ${stageColor}99)` }}
-        >
+        <div className="flex items-center gap-3 bg-gradient-to-r from-blue-600 to-blue-700 rounded-[1.5rem] px-5 py-4 mb-4 shadow-lg">
           <div className="text-2xl">🥇</div>
           <div className="flex-1 min-w-0">
-            <p className="text-[9px] font-black text-white/70 uppercase tracking-widest">{winnerLabel}</p>
+            <p className="text-[9px] font-black text-blue-200 uppercase tracking-widest">{winnerLabel}</p>
             <p className="font-black text-white text-base truncate">{topEntry.bracket_name}</p>
           </div>
           <div className="text-right flex-shrink-0">
             <p className="font-black text-2xl text-white">{topPts}</p>
-            <p className="text-[9px] text-white/60 uppercase font-bold">pts</p>
+            <p className="text-[9px] text-blue-200 uppercase font-bold">pts</p>
           </div>
         </div>
       )}
-
-      {/* ── Gap Analysis ── */}
-      {topPts > 0 && (
-        <GapAnalysisPanel list={list} getScore={getDisplayPts} />
-      )}
-
-      {/* ── Distribution Chart ── */}
-      {topPts > 0 && (
-        <PointsDistributionChart
-          list={allScores}
-          maxBin={maxBinPts}
-          color={stageColor}
-        />
-      )}
-
-      {/* ── Ranked List ── */}
       {list.map((u, i) => {
-        const pts       = getDisplayPts(u);
-        const prevRank  = prev.indexOf(u.id);
-        const moved     = prevRank !== -1 ? prevRank - i : 0;
-        const pct       = Math.round((pts / maxPts) * 100);
-        const isFirst   = i === 0;
-        const gPts      = u.group_points    ?? 0;
-        const kPts      = u.knockout_points ?? 0;
-        const aPts      = u.awards_points   ?? 0;
+        const pts = getDisplayPts(u);
+        const prevRank = prev.indexOf(u.id);
+        const moved = prevRank !== -1 ? prevRank - i : 0;
+        const pct = Math.round((pts / maxPts) * 100);
+        const isFirst = i === 0;
 
         return (
           <div
             key={u.id ?? i}
-            className={`relative overflow-hidden rounded-[1.8rem] border-2 transition-all
-              ${isFirst ? 'bg-slate-950 border-slate-800' : 'bg-slate-50 border-slate-200'}`}
+            className={`relative overflow-hidden rounded-[1.8rem] border-2 transition-all ${isFirst ? 'bg-slate-950 border-slate-800' : 'bg-slate-50 border-slate-200'}`}
           >
-            {/* Background bar — stacked for final, plain for others */}
-            <StackedScoreBar
-              groupPts={gPts} knockoutPts={kPts} awardsPts={aPts}
-              maxPts={maxPts} isFirst={isFirst} isFinal={isFinal}
+            <div
+              className={`absolute left-0 top-0 h-full rounded-[1.8rem] transition-all opacity-10 ${isFirst ? 'bg-blue-400' : 'bg-blue-600'}`}
+              style={{ width: `${pct}%` }}
             />
-
             <div className="relative z-10 flex justify-between items-center p-5">
               <div className="flex items-center gap-4">
                 <span className={`font-mono font-black text-xl w-8 text-center ${isFirst ? 'text-blue-400' : 'text-slate-300'}`}>
                   {i < 3 ? medals[i] : `#${i + 1}`}
                 </span>
                 <div>
-                  <p className={`font-black text-base ${isFirst ? 'text-white' : 'text-slate-800'}`}>
-                    {u.bracket_name}
-                  </p>
-                  <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-                    {/* G / K / A breakdown pills — always shown in final, only G shown elsewhere */}
-                    {isFinal ? (
-                      <>
+                  <p className={`font-black text-base ${isFirst ? 'text-white' : 'text-slate-800'}`}>{u.bracket_name}</p>
+                  <div className="flex items-center gap-2 mt-0.5">
+                    <p className={`text-[10px] ${isFirst ? 'text-slate-500' : 'text-slate-400'}`}>
+                      {new Date(u.created_at).toLocaleDateString()}
+                    </p>
+                    {isFinal && (
+                      <div className="flex items-center gap-1">
                         {[
-                          { label: 'G', val: gPts, color: 'bg-blue-100 text-blue-700',   ring: 'border-blue-200'   },
-                          { label: 'K', val: kPts, color: 'bg-purple-100 text-purple-700', ring: 'border-purple-200' },
-                          { label: 'A', val: aPts, color: 'bg-amber-100 text-amber-700',  ring: 'border-amber-200'  },
-                        ].map(({ label: lb, val, color, ring }) => (
-                          <span key={lb} className={`text-[8px] font-black px-1.5 py-0.5 rounded-md border ${color} ${ring}`}>
-                            {lb}:{val}
+                          { label: 'G', val: u.group_points ?? 0, color: 'bg-blue-100 text-blue-700' },
+                          { label: 'K', val: u.knockout_points ?? 0, color: 'bg-purple-100 text-purple-700' },
+                          { label: 'A', val: u.awards_points ?? 0, color: 'bg-amber-100 text-amber-700' },
+                        ].map(({ label, val, color }) => (
+                          <span key={label} className={`text-[8px] font-black px-1.5 py-0.5 rounded-md ${color}`}>
+                            {label}:{val}
                           </span>
                         ))}
-                      </>
-                    ) : (
-                      <span className={`text-[9px] font-black ${isFirst ? 'text-blue-400' : 'text-slate-400'}`}>
-                        {gPts} group pts
-                      </span>
+                      </div>
                     )}
                   </div>
                 </div>
               </div>
-
               <div className="flex items-center gap-3">
-                {moved > 0 && (
-                  <span className="text-emerald-500 text-xs font-black flex items-center gap-0.5">
-                    <ChevronUp size={14} />+{moved}
-                  </span>
-                )}
-                {moved < 0 && (
-                  <span className="text-red-400 text-xs font-black flex items-center gap-0.5">
-                    <ChevronDown size={14} />{moved}
-                  </span>
-                )}
+                {moved > 0 && <span className="text-emerald-500 text-xs font-black flex items-center"><ChevronUp size={14} />+{moved}</span>}
+                {moved < 0 && <span className="text-red-400 text-xs font-black flex items-center"><ChevronDown size={14} />{moved}</span>}
                 <div className="text-right">
-                  <p className={`font-black text-2xl ${isFirst ? 'text-white' : ''}`}
-                    style={!isFirst ? { color: stageColor } : {}}>
-                    {pts}
-                  </p>
+                  <p className={`font-black text-2xl ${isFirst ? 'text-white' : 'text-blue-600'}`}>{pts}</p>
                   <p className={`text-[9px] uppercase font-bold ${isFirst ? 'text-slate-500' : 'text-slate-400'}`}>pts</p>
                 </div>
               </div>
