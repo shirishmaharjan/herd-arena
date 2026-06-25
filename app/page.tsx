@@ -1388,7 +1388,10 @@ export default function HerdArenaFinalMaster() {
               )}
             </>
           ) : view === 'leaderboard' ? (
-            <div className="max-w-2xl mx-auto space-y-12">
+            <div className="max-w-2xl mx-auto space-y-8">
+
+              {/* ── STANDINGS HEADER BANNER ── */}
+              <StandingsBanner />
 
               {/* SECTION 1 — Group Stage + Round of 32 */}
               <div className="bg-white border border-slate-100 rounded-[3rem] p-8 md:p-10 shadow-xl">
@@ -1405,7 +1408,7 @@ export default function HerdArenaFinalMaster() {
                   </span>
                 </div>
                 <PointsBreakdownCard stage="group" />
-                <LeaderboardSection scoreField="group_points" label="group stage" showWinner winnerLabel="Stage 1 Leader" />
+                <LeaderboardSection scoreField="group_points" label="group stage" showWinner winnerLabel="Stage 1 Leader" maxStagePts={72} />
               </div>
 
               {/* SECTION 2 — Knockout Bracket */}
@@ -1423,7 +1426,7 @@ export default function HerdArenaFinalMaster() {
                   </span>
                 </div>
                 <PointsBreakdownCard stage="knockout" />
-                <LeaderboardSection scoreField="knockout_points" label="knockout stage" cumulative showWinner winnerLabel="Stage 2 Leader" />
+                <LeaderboardSection scoreField="knockout_points" label="knockout stage" cumulative showWinner winnerLabel="Stage 2 Leader" maxStagePts={252} />
               </div>
 
               {/* SECTION 3 — Final with Player Honors */}
@@ -1441,7 +1444,7 @@ export default function HerdArenaFinalMaster() {
                   </span>
                 </div>
                 <PointsBreakdownCard stage="final" />
-                <LeaderboardSection scoreField="points" label="tournament" isFinal showWinner winnerLabel="Overall Champion 🏆" />
+                <LeaderboardSection scoreField="points" label="tournament" isFinal showWinner winnerLabel="Overall Champion 🏆" maxStagePts={267} />
               </div>
 
             </div>
@@ -1467,6 +1470,86 @@ export default function HerdArenaFinalMaster() {
   );
 }
 
+// ─── STANDINGS BANNER ─────────────────────────────────────────────────────────
+// Displays last-updated timestamp + a contextual note about scoring stage.
+function StandingsBanner() {
+  const [lastUpdated, setLastUpdated] = useState<string | null>(null);
+  const [note, setNote] = useState('');
+  const [participantCount, setParticipantCount] = useState(0);
+
+  useEffect(() => {
+    const load = async () => {
+      // Fetch most recently updated submission timestamp + count
+      const { data } = await supabase
+        .from('submissions')
+        .select('points, group_points, knockout_points, awards_points, created_at')
+        .order('created_at', { ascending: false });
+      if (!data || data.length === 0) return;
+      setParticipantCount(data.length);
+
+      // Use the most recent created_at as a proxy for last score update
+      setLastUpdated(data[0].created_at);
+
+      // Determine which stage we're in based on score columns
+      const anyKnockout = data.some((r: any) => (r.knockout_points ?? 0) > 0);
+      const anyAwards   = data.some((r: any) => (r.awards_points ?? 0) > 0);
+      const anyGroup    = data.some((r: any) => (r.group_points ?? 0) > 0);
+      const groupDone   = anyGroup && !anyKnockout;
+
+      if (anyAwards) {
+        setNote('Results include Group Stage, Knockout rounds & Player Award bonuses.');
+      } else if (anyKnockout) {
+        setNote('Results include Group Stage + Knockout stage scores. Player Awards pending.');
+      } else if (groupDone) {
+        setNote('Results after completion of all 12 Group Stage matchdays. Knockout stage begins next.');
+      } else {
+        setNote('Scores update automatically as each stage is completed.');
+      }
+    };
+    load();
+  }, []);
+
+  const formattedTime = lastUpdated
+    ? new Date(lastUpdated).toLocaleString('en-GB', {
+        day: 'numeric', month: 'short', year: 'numeric',
+        hour: '2-digit', minute: '2-digit',
+      })
+    : null;
+
+  return (
+    <div className="rounded-[2rem] overflow-hidden border border-slate-200 shadow-sm">
+      {/* Top bar: live badge + timestamp */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-950 px-6 py-4">
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
+            <span className="relative flex h-2.5 w-2.5">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500" />
+            </span>
+            <span className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">Official Standings</span>
+          </div>
+          {participantCount > 0 && (
+            <span className="text-[9px] font-bold text-slate-500 border border-slate-700 px-2 py-0.5 rounded-lg">
+              {participantCount} participants
+            </span>
+          )}
+        </div>
+        {formattedTime && (
+          <div className="flex items-center gap-1.5 text-slate-400">
+            <RefreshCw size={10} />
+            <span className="text-[10px] font-bold">Last updated: <span className="text-slate-300 font-black">{formattedTime}</span></span>
+          </div>
+        )}
+      </div>
+      {/* Note bar */}
+      <div className="bg-blue-50 border-t border-blue-100 px-6 py-3 flex items-start gap-2.5">
+        <Info size={13} className="text-blue-500 flex-shrink-0 mt-0.5" />
+        <p className="text-[11px] font-bold text-blue-700 leading-snug">{note || 'Scores update automatically as each stage is completed.'}</p>
+      </div>
+    </div>
+  );
+}
+
 // ─── LEADERBOARD SECTION ──────────────────────────────────────────────────────
 // scoreField: which column to rank by for this section
 // cumulative: show group+knockout combined pts
@@ -1478,6 +1561,7 @@ function LeaderboardSection({
   isFinal = false,
   showWinner = false,
   winnerLabel = 'Leader',
+  maxStagePts = 72,
 }: {
   scoreField: string;
   label: string;
@@ -1485,6 +1569,7 @@ function LeaderboardSection({
   isFinal?: boolean;
   showWinner?: boolean;
   winnerLabel?: string;
+  maxStagePts?: number;
 }) {
   const [list, setList] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -1535,24 +1620,73 @@ function LeaderboardSection({
     return u[scoreField] ?? 0;
   };
 
-  const maxPts = Math.max(...list.map(u => getDisplayPts(u)), 1);
   const medals = ['🥇', '🥈', '🥉'];
+  const podiumColors = [
+    { bg: 'bg-amber-400',  ring: 'ring-amber-300'  },
+    { bg: 'bg-slate-300',  ring: 'ring-slate-200'  },
+    { bg: 'bg-orange-400', ring: 'ring-orange-300' },
+  ];
 
   const topEntry = list[0];
   const topPts = topEntry ? getDisplayPts(topEntry) : 0;
 
+  // Score distribution: bucket scores into 6 bins for a mini histogram
+  const binCount = 6;
+  const bins = Array(binCount).fill(0);
+  list.forEach(u => {
+    const pts = getDisplayPts(u);
+    const idx = Math.min(Math.floor((pts / maxStagePts) * binCount), binCount - 1);
+    bins[idx]++;
+  });
+  const maxBin = Math.max(...bins, 1);
+
   return (
     <div className="space-y-3">
+      {/* Score distribution mini-chart */}
+      {list.length >= 3 && (
+        <div className="bg-slate-50 border border-slate-100 rounded-2xl px-5 py-4 mb-2">
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Score Distribution · {list.length} players</p>
+            <p className="text-[9px] font-bold text-slate-400">0 — {maxStagePts} pts</p>
+          </div>
+          <div className="flex items-end gap-1 h-8">
+            {bins.map((count, i) => {
+              const heightPct = Math.round((count / maxBin) * 100);
+              const rangeStart = Math.round((i / binCount) * maxStagePts);
+              const rangeEnd   = Math.round(((i + 1) / binCount) * maxStagePts);
+              return (
+                <div key={i} className="flex-1 flex flex-col items-center gap-0.5" title={`${rangeStart}–${rangeEnd} pts: ${count} player${count !== 1 ? 's' : ''}`}>
+                  <div
+                    className="w-full rounded-t-sm transition-all"
+                    style={{
+                      height: `${Math.max(heightPct, count > 0 ? 8 : 0)}%`,
+                      background: count > 0
+                        ? `linear-gradient(180deg, #3b82f6, #6366f1)`
+                        : '#e2e8f0',
+                      opacity: count > 0 ? 0.85 : 0.3,
+                    }}
+                  />
+                </div>
+              );
+            })}
+          </div>
+          <div className="flex justify-between mt-1">
+            <span className="text-[8px] text-slate-300 font-bold">Low</span>
+            <span className="text-[8px] text-slate-300 font-bold">High</span>
+          </div>
+        </div>
+      )}
       {showWinner && topEntry && topPts > 0 && (
-        <div className="flex items-center gap-3 bg-gradient-to-r from-slate-950 to-slate-800 rounded-[1.5rem] px-5 py-4 mb-4 shadow-lg">
-          <div className="text-2xl">🥇</div>
-          <div className="flex-1 min-w-0">
-            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{winnerLabel}</p>
+        <div className="relative overflow-hidden flex items-center gap-3 bg-gradient-to-r from-slate-950 to-slate-800 rounded-[1.5rem] px-5 py-4 mb-4 shadow-lg border border-amber-500/20">
+          <div className="absolute inset-0 opacity-5" style={{ backgroundImage: 'radial-gradient(circle, #f59e0b 1px, transparent 1px)', backgroundSize: '20px 20px' }} />
+          <div className="text-2xl relative z-10">🥇</div>
+          <div className="flex-1 min-w-0 relative z-10">
+            <p className="text-[9px] font-black text-amber-400/80 uppercase tracking-widest">{winnerLabel}</p>
             <p className="font-black text-white text-base truncate">{topEntry.bracket_name}</p>
           </div>
-          <div className="text-right flex-shrink-0">
+          <div className="text-right flex-shrink-0 relative z-10">
             <p className="font-black text-2xl text-amber-400">{topPts}</p>
-            <p className="text-[9px] text-slate-500 uppercase font-bold">pts</p>
+            <p className="text-[9px] text-slate-500 uppercase font-bold">/ {maxStagePts} pts</p>
           </div>
         </div>
       )}
@@ -1560,26 +1694,43 @@ function LeaderboardSection({
         const pts = getDisplayPts(u);
         const prevRank = prev.indexOf(u.id);
         const moved = prevRank !== -1 ? prevRank - i : 0;
-        const pct = Math.round((pts / maxPts) * 100);
+        const pct = Math.round((pts / maxStagePts) * 100);
         const isFirst = i === 0;
+        const isTop3 = i < 3;
+        const gapToLeader = topPts - pts;
 
         return (
           <div
             key={u.id ?? i}
-            className={`relative overflow-hidden rounded-[1.8rem] border-2 transition-all ${isFirst ? 'bg-slate-950 border-slate-800' : 'bg-slate-50 border-slate-200'}`}
+            className={`relative overflow-hidden rounded-[1.8rem] border-2 transition-all ${
+              isFirst    ? 'bg-slate-950 border-slate-800 shadow-lg' :
+              i === 1    ? 'bg-slate-50 border-slate-300' :
+              i === 2    ? 'bg-slate-50 border-slate-200' :
+                           'bg-slate-50 border-slate-200'
+            }`}
           >
+            {/* Progress bar fill */}
             <div
-              className={`absolute left-0 top-0 h-full rounded-[1.8rem] transition-all opacity-10 ${isFirst ? 'bg-blue-400' : 'bg-blue-600'}`}
-              style={{ width: `${pct}%` }}
+              className={`absolute left-0 top-0 h-full rounded-[1.8rem] transition-all ${isFirst ? 'opacity-15' : 'opacity-[0.07]'}`}
+              style={{
+                width: `${pct}%`,
+                background: isFirst ? '#60a5fa' : i === 1 ? '#94a3b8' : i === 2 ? '#fb923c' : '#3b82f6',
+              }}
             />
             <div className="relative z-10 flex justify-between items-center p-5">
               <div className="flex items-center gap-4">
-                <span className={`font-mono font-black text-xl w-8 text-center ${isFirst ? 'text-blue-400' : 'text-slate-300'}`}>
-                  {i < 3 ? medals[i] : `#${i + 1}`}
-                </span>
+                {/* Rank medal */}
+                <div className="flex flex-col items-center gap-0.5">
+                  <span className={`font-mono font-black text-xl w-8 text-center ${isFirst ? 'text-blue-400' : 'text-slate-300'}`}>
+                    {i < 3 ? medals[i] : `#${i + 1}`}
+                  </span>
+                  {isTop3 && (
+                    <div className={`w-1.5 h-1.5 rounded-full ${podiumColors[i].bg}`} />
+                  )}
+                </div>
                 <div>
                   <p className={`font-black text-base ${isFirst ? 'text-white' : 'text-slate-800'}`}>{u.bracket_name}</p>
-                  <div className="flex items-center gap-2 mt-0.5">
+                  <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                     <p className={`text-[10px] ${isFirst ? 'text-slate-500' : 'text-slate-400'}`}>
                       {new Date(u.created_at).toLocaleDateString()}
                     </p>
@@ -1596,6 +1747,12 @@ function LeaderboardSection({
                         ))}
                       </div>
                     )}
+                    {/* Gap to leader pill — only for non-leaders with pts > 0 */}
+                    {!isFirst && gapToLeader > 0 && pts > 0 && (
+                      <span className="text-[8px] font-black text-slate-400 bg-slate-100 border border-slate-200 px-1.5 py-0.5 rounded-md">
+                        -{gapToLeader} from top
+                      </span>
+                    )}
                   </div>
                 </div>
               </div>
@@ -1603,7 +1760,7 @@ function LeaderboardSection({
                 {moved > 0 && <span className="text-emerald-500 text-xs font-black flex items-center"><ChevronUp size={14} />+{moved}</span>}
                 {moved < 0 && <span className="text-red-400 text-xs font-black flex items-center"><ChevronDown size={14} />{moved}</span>}
                 <div className="text-right">
-                  <p className={`font-black text-2xl ${isFirst ? 'text-white' : 'text-blue-600'}`}>{pts}</p>
+                  <p className={`font-black text-2xl tabular-nums ${isFirst ? 'text-white' : 'text-blue-600'}`}>{pts}</p>
                   <p className={`text-[9px] uppercase font-bold ${isFirst ? 'text-slate-500' : 'text-slate-400'}`}>pts</p>
                 </div>
               </div>
