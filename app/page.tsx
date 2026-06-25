@@ -1506,8 +1506,10 @@ function ResultsView({ bracketName, getTeam }: { bracketName: string; getTeam: (
 
   const offStandings    = official?.bracket_data?.standings    || {};
   const offBracket      = official?.bracket_data?.bracketWinners || {};
+  const offThirds       = (official?.bracket_data?.thirds as string[]) || [];
   const myStandings     = mySub?.bracket_data?.standings    || {};
   const myBracket       = mySub?.bracket_data?.bracketWinners || {};
+  const myThirds        = (mySub?.bracket_data?.thirds as string[]) || [];
 
   // Score tallies
   let groupHits = 0, groupTotal = 0;
@@ -1528,30 +1530,35 @@ function ResultsView({ bracketName, getTeam }: { bracketName: string; getTeam: (
     }
   });
 
+  // Thirds: count how many of the official 8 thirds the user also picked
+  const thirdsHits = offThirds.length > 0
+    ? offThirds.filter(id => myThirds.includes(id)).length
+    : 0;
+
   const awardPairs = [
     { label: '🏅 Golden Ball', offVal: official?.golden_ball, myVal: mySub?.golden_ball },
     { label: '👟 Golden Boot', offVal: official?.golden_boot, myVal: mySub?.golden_boot },
     { label: '🧤 Golden Gloves', offVal: official?.golden_gloves, myVal: mySub?.golden_gloves },
   ].filter(a => a.offVal);
-  const awardHits  = awardPairs.filter(a => normalizeName(a.myVal || '') === normalizeName(a.offVal || '')).length;
+  const awardHits = awardPairs.filter(a => normalizeName(a.myVal || '') === normalizeName(a.offVal || '')).length;
 
-  const groupPts  = groupHits * 2;
-  const knockPts  = Object.keys(offBracket).reduce((sum, mid) => {
+  const groupPts = groupHits * 2;
+  const knockPts = Object.keys(offBracket).reduce((sum, mid) => {
     if (myBracket[mid]?.id !== offBracket[mid]?.id) return sum;
     const m = parseInt(mid.substring(1));
     return sum + (m <= 102 ? 5 : m === 103 ? 10 : 20);
   }, 0);
-  const awardPts  = awardHits * 5;
-  const totalPts  = groupPts + knockPts + awardPts;
+  const awardPts = awardHits * 5;
+  const totalPts = groupPts + knockPts + awardPts;
 
   const hasGroups   = Object.keys(offStandings).length > 0;
-  const hasKnockout = Object.keys(offBracket).length > 0;
+  const hasKnockout = Object.keys(offBracket).length > 0 || offThirds.length > 0;
   const hasAwards   = awardPairs.length > 0;
 
   const tabs = [
-    { id: 'groups',   label: 'Group Stage',  available: hasGroups,   pts: groupPts,  hits: groupHits,  total: groupTotal,  icon: Target },
-    { id: 'knockout', label: 'Knockout',      available: hasKnockout, pts: knockPts,  hits: knockHits,  total: knockTotal,  icon: Zap },
-    { id: 'awards',   label: 'Player Awards', available: hasAwards,   pts: awardPts,  hits: awardHits,  total: awardPairs.length, icon: Star },
+    { id: 'groups',   label: 'Group Stage',  available: hasGroups,   pts: groupPts,  hits: groupHits,             total: groupTotal,                          icon: Target },
+    { id: 'knockout', label: 'Knockout',      available: hasKnockout, pts: knockPts,  hits: knockHits + thirdsHits, total: knockTotal + offThirds.length,       icon: Zap    },
+    { id: 'awards',   label: 'Player Awards', available: hasAwards,   pts: awardPts,  hits: awardHits,             total: awardPairs.length,                   icon: Star   },
   ] as const;
 
   return (
@@ -1777,7 +1784,7 @@ function ResultsView({ bracketName, getTeam }: { bracketName: string; getTeam: (
               <div className="space-y-5">
                 <div className="flex items-center justify-between">
                   <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                    {knockHits} of {knockTotal} correct · {knockPts} pts earned
+                    {knockHits + thirdsHits} of {knockTotal + offThirds.length} correct · {knockPts} pts earned
                   </p>
                   <span className="text-[10px] font-bold text-slate-400 bg-slate-100 px-3 py-1 rounded-lg">
                     R32/R16/QF/SF +5 · 3rd +10 · Final +20
@@ -1786,10 +1793,61 @@ function ResultsView({ bracketName, getTeam }: { bracketName: string; getTeam: (
                 <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
                   <div
                     className="h-full rounded-full bg-gradient-to-r from-purple-500 to-pink-500 transition-all"
-                    style={{ width: `${knockTotal > 0 ? Math.round((knockHits / knockTotal) * 100) : 0}%` }}
+                    style={{ width: `${(knockTotal + offThirds.length) > 0 ? Math.round(((knockHits + thirdsHits) / (knockTotal + offThirds.length)) * 100) : 0}%` }}
                   />
                 </div>
 
+                {/* ── Best 8 Thirds comparison ── */}
+                {offThirds.length > 0 && (
+                  <div className="bg-amber-50 border-2 border-amber-200 rounded-[2rem] p-5 shadow-sm">
+                    <div className="flex items-center justify-between mb-4">
+                      <div>
+                        <h3 className="text-xs font-black text-amber-800 uppercase tracking-widest">Best 8 Third-Place Teams</h3>
+                        <p className="text-[10px] text-amber-600 font-bold mt-0.5">Which thirds advance to the Round of 32</p>
+                      </div>
+                      <span className="text-[9px] font-black px-3 py-1 rounded-xl bg-amber-200 text-amber-800">
+                        {thirdsHits}/{offThirds.length} matched
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                      {offThirds.map(tid => {
+                        const t       = getTeam(tid);
+                        const myPicked = myThirds.includes(tid);
+                        return (
+                          <div key={tid} className={`flex items-center gap-2 rounded-xl border-2 px-3 py-2.5 ${myPicked ? 'bg-emerald-50 border-emerald-200' : 'bg-white border-slate-200'}`}>
+                            {t?.c && <img src={`https://flagcdn.com/w40/${t.c}.png`} className="w-5 h-3.5 object-cover rounded shadow-sm flex-shrink-0" alt="" />}
+                            <div className="min-w-0">
+                              <p className="text-[10px] font-black truncate text-slate-800">{t?.n || tid}</p>
+                              {myPicked
+                                ? <p className="text-[8px] font-black text-emerald-600 flex items-center gap-0.5"><CheckCircle2 size={8} /> You picked this</p>
+                                : <p className="text-[8px] font-bold text-slate-400">You missed this</p>
+                              }
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    {/* Show which of my thirds didn't make it */}
+                    {myThirds.filter(id => !offThirds.includes(id)).length > 0 && (
+                      <div className="mt-3 pt-3 border-t border-amber-200">
+                        <p className="text-[9px] font-black text-amber-700 uppercase tracking-widest mb-2">Your picks that didn't advance</p>
+                        <div className="flex flex-wrap gap-1.5">
+                          {myThirds.filter(id => !offThirds.includes(id)).map(tid => {
+                            const t = getTeam(tid);
+                            return (
+                              <div key={tid} className="flex items-center gap-1.5 bg-white border border-amber-200 rounded-lg px-2.5 py-1.5 opacity-60">
+                                {t?.c && <img src={`https://flagcdn.com/w40/${t.c}.png`} className="w-4 h-2.5 object-cover rounded flex-shrink-0" alt="" />}
+                                <span className="text-[9px] font-bold text-slate-600">{t?.n || tid}</span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* ── Round-by-round bracket results ── */}
                 {rounds.map(r => (
                   <div key={r.label} className="bg-white border border-slate-100 rounded-[2rem] p-5 shadow-sm">
                     <div className="flex items-center justify-between mb-3">
