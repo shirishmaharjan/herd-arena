@@ -3071,42 +3071,70 @@ function GoldenAwardsRace({ bracketName }: { bracketName: string }) {
   );
 }
 
-// ─── OFFICIAL RESULTS PANEL ──────────────────────────────────────────────────
-// Shows the official results from official_results table: all 12 group standings,
-// top 12 qualifiers, and all knockout round winners. Read-only for everyone.
-function OfficialResultsPanel({ getTeam }: { getTeam: (id: string) => any }) {
+// ─── LIVE KNOCKOUT VIEW ───────────────────────────────────────────────────────
+// Full live bracket experience: qualification summary, round-by-round match cards
+// showing both teams, the winner, user's pick, and points earned or missed.
+function LiveKnockoutView({ bracketName, getTeam }: { bracketName: string; getTeam: (id: string) => any }) {
   const [official, setOfficial] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
-  const [section, setSection] = useState<'groups' | 'knockout' | 'awards'>('groups');
-  const [open, setOpen] = useState(true);
+  const [mySub,    setMySub]    = useState<any>(null);
+  const [loading,  setLoading]  = useState(true);
+  const [section,  setSection]  = useState<'groups' | 'knockout' | 'awards'>('groups');
 
   useEffect(() => {
-    supabase
-      .from('official_results')
-      .select('*')
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .maybeSingle()
-      .then(({ data }) => { setOfficial(data || null); setLoading(false); });
-  }, []);
+    const load = async () => {
+      setLoading(true);
+      const [{ data: off }, { data: sub }] = await Promise.all([
+        supabase.from('official_results').select('*').order('created_at', { ascending: false }).limit(1).maybeSingle(),
+        supabase.from('submissions').select('*').eq('bracket_name', bracketName).maybeSingle(),
+      ]);
+      setOfficial(off || null);
+      setMySub(sub || null);
+      setLoading(false);
+    };
+    load();
+  }, [bracketName]);
 
-  const offStandings = official?.bracket_data?.standings || {};
-  const offBracket   = official?.bracket_data?.bracketWinners || {};
-  const offThirds    = (official?.bracket_data?.thirds as string[]) || [];
-  const hasGroups    = Object.keys(offStandings).length > 0;
-  const hasKnockout  = Object.keys(offBracket).length > 0 || offThirds.length > 0;
-  const hasAwards    = !!(official?.golden_ball || official?.golden_boot || official?.golden_gloves);
-  const noResults    = !official || (!hasGroups && !hasKnockout && !hasAwards);
+  const offStandings  = official?.bracket_data?.standings      || {};
+  const offBracket    = official?.bracket_data?.bracketWinners || {};
+  const offThirds     = (official?.bracket_data?.thirds as string[]) || [];
+  const myBracket     = mySub?.bracket_data?.bracketWinners    || {};
+  const myStandings   = mySub?.bracket_data?.standings         || {};
+  const myThirds      = (mySub?.bracket_data?.thirds as string[]) || [];
 
-  // Build knockout rounds (same buckets as ResultsView)
-  const roundBuckets = [
-    { label: 'Round of 32',   ids: Object.keys(offBracket).filter(id => { const m = parseInt(id.substring(1)); return m >= 1  && m <= 16; }), pts: 5  },
-    { label: 'Round of 16',   ids: Object.keys(offBracket).filter(id => { const m = parseInt(id.substring(1)); return m >= 17 && m <= 24; }), pts: 5  },
-    { label: 'Quarter-Finals',ids: Object.keys(offBracket).filter(id => { const m = parseInt(id.substring(1)); return m >= 25 && m <= 28; }), pts: 5  },
-    { label: 'Semi-Finals',   ids: Object.keys(offBracket).filter(id => { const m = parseInt(id.substring(1)); return m >= 29 && m <= 30; }), pts: 5  },
-    { label: '3rd Place',     ids: Object.keys(offBracket).filter(id => id === 'm103'),                                                       pts: 10 },
-    { label: 'The Final',     ids: Object.keys(offBracket).filter(id => id === 'm104'),                                                       pts: 20 },
-  ].filter(r => r.ids.length > 0);
+  const hasGroups   = Object.keys(offStandings).length > 0;
+  const hasKnockout = Object.keys(offBracket).length > 0 || offThirds.length > 0;
+  const hasAwards   = !!(official?.golden_ball || official?.golden_boot || official?.golden_gloves);
+  const noResults   = !official || (!hasGroups && !hasKnockout && !hasAwards);
+
+  // ── Score tallies ──────────────────────────────────────────────────────────
+  let groupPts = 0;
+  Object.keys(offStandings).forEach(gid =>
+    [1,2,3].forEach(r => { if (offStandings[gid]?.[r] && myStandings[gid]?.[r] === offStandings[gid]?.[r]) groupPts += 2; })
+  );
+  let knockPts = 0;
+  Object.keys(offBracket).forEach(mid => {
+    if (myBracket[mid]?.id === offBracket[mid]?.id) {
+      const m = parseInt(mid.substring(1));
+      knockPts += m <= 102 ? 5 : m === 103 ? 10 : 20;
+    }
+  });
+  const thirdsHits = offThirds.filter(id => myThirds.includes(id)).length;
+  const awardPts = [
+    [official?.golden_ball,   mySub?.golden_ball],
+    [official?.golden_boot,   mySub?.golden_boot],
+    [official?.golden_gloves, mySub?.golden_gloves],
+  ].filter(([o, m]) => o && normalizeName(o) === normalizeName(m || '')).length * 5;
+  const totalPts = groupPts + knockPts + awardPts;
+
+  // ── Round definitions ──────────────────────────────────────────────────────
+  const ROUNDS = [
+    { key: 'r32', label: 'Round of 32',    pts: 5,  ids: Array.from({length:16}, (_,i) => `m${i+1}`)   },
+    { key: 'r16', label: 'Round of 16',    pts: 5,  ids: Array.from({length:8},  (_,i) => `m${i+17}`)  },
+    { key: 'qf',  label: 'Quarter-Finals', pts: 5,  ids: Array.from({length:4},  (_,i) => `m${i+25}`)  },
+    { key: 'sf',  label: 'Semi-Finals',    pts: 5,  ids: Array.from({length:2},  (_,i) => `m${i+29}`)  },
+    { key: '3p',  label: '3rd Place',      pts: 10, ids: ['m103']                                       },
+    { key: 'f',   label: 'The Final 🏆',   pts: 20, ids: ['m104']                                       },
+  ];
 
   const tabs = [
     { id: 'groups',   label: 'Groups',   available: hasGroups,   icon: Target },
@@ -3114,180 +3142,340 @@ function OfficialResultsPanel({ getTeam }: { getTeam: (id: string) => any }) {
     { id: 'awards',   label: 'Awards',   available: hasAwards,   icon: Star   },
   ] as const;
 
+  if (loading) return (
+    <div className="flex items-center justify-center py-16 gap-2 text-slate-400">
+      <RefreshCw size={16} className="animate-spin" />
+      <span className="text-xs font-bold">Loading results...</span>
+    </div>
+  );
+
+  if (noResults) return (
+    <div className="bg-amber-50 border-2 border-amber-200 rounded-[2rem] p-10 text-center space-y-3">
+      <div className="text-4xl">⏳</div>
+      <p className="font-black text-amber-900 text-lg">Official results not published yet</p>
+      <p className="text-amber-700 text-sm">Results appear here once the admin publishes each stage.</p>
+    </div>
+  );
+
   return (
-    <div className="bg-white border-2 border-emerald-200 rounded-[2rem] overflow-hidden shadow-sm">
-      {/* Header / toggle */}
-      <button
-        onClick={() => setOpen(p => !p)}
-        className="w-full flex items-center justify-between px-6 py-5 hover:bg-emerald-50 transition-colors"
-      >
-        <div className="flex items-center gap-3">
-          <div className="bg-emerald-600 p-2 rounded-xl"><CheckCircle2 size={16} className="text-white" /></div>
-          <div className="text-left">
-            <p className="text-[10px] font-black text-emerald-700 uppercase tracking-widest">Official Results</p>
-            <p className="text-sm font-black text-slate-800">
-              {noResults ? 'No results published yet' : 'Groups · Top 12 · Knockout Winners'}
-            </p>
+    <div className="space-y-6">
+
+      {/* ── Header with running score ── */}
+      <div className="bg-slate-950 rounded-[2.5rem] p-7 md:p-10 text-white shadow-2xl">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+          <div>
+            <span className="inline-flex items-center gap-2 bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 px-4 py-1.5 rounded-full text-[10px] font-black uppercase mb-3">
+              <CheckCircle2 size={12} /> Official Results · Your Picks vs Reality
+            </span>
+            <h2 className="text-2xl md:text-3xl font-black italic tracking-tighter">
+              {bracketName}'s <span className="text-blue-400">Score Breakdown</span>
+            </h2>
+            <p className="text-slate-400 text-xs mt-1">Green = points earned · Red = wrong pick · Grey = result pending</p>
+          </div>
+          {/* Score summary pills */}
+          <div className="flex gap-2 flex-wrap flex-shrink-0">
+            {[
+              { label: 'Groups',   pts: groupPts,  max: 72,  color: 'text-blue-400'   },
+              { label: 'Knockout', pts: knockPts,  max: 180, color: 'text-purple-400' },
+              { label: 'Awards',   pts: awardPts,  max: 15,  color: 'text-amber-400'  },
+            ].map(({ label, pts, max, color }) => (
+              <div key={label} className="bg-white/5 border border-white/10 rounded-2xl px-4 py-3 text-center min-w-[68px]">
+                <p className={`text-xl font-black tabular-nums ${color}`}>{pts}</p>
+                <p className="text-[8px] font-bold text-slate-500 uppercase mt-0.5">{label}</p>
+                <p className="text-[7px] text-slate-600">/{max}</p>
+              </div>
+            ))}
+            <div className="bg-white/15 border border-white/25 rounded-2xl px-4 py-3 text-center min-w-[68px]">
+              <p className="text-xl font-black tabular-nums text-white">{totalPts}</p>
+              <p className="text-[8px] font-bold text-slate-400 uppercase mt-0.5">Total</p>
+              <p className="text-[7px] text-slate-500">/267</p>
+            </div>
           </div>
         </div>
-        <ChevronDown size={18} className={`text-slate-400 transition-transform ${open ? 'rotate-180' : ''}`} />
-      </button>
+      </div>
 
-      {open && (
-        <div className="px-6 pb-6 space-y-5 border-t border-emerald-100 pt-5">
-          {loading && (
-            <div className="flex items-center justify-center py-10 gap-2 text-slate-400">
-              <RefreshCw size={14} className="animate-spin" />
-              <span className="text-xs font-bold">Loading official results...</span>
-            </div>
-          )}
+      {/* ── Sub-tab switcher ── */}
+      <div className="flex gap-2 bg-white border border-slate-100 rounded-2xl p-1.5 shadow-sm">
+        {tabs.map(({ id, label, available, icon: Icon }) => (
+          <button
+            key={id}
+            onClick={() => available && setSection(id)}
+            disabled={!available}
+            className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-3 rounded-xl text-[10px] font-black uppercase tracking-wide transition-all ${
+              section === id ? 'bg-slate-950 text-white shadow-md'
+              : available  ? 'hover:bg-slate-50 text-slate-500'
+              : 'opacity-30 cursor-not-allowed text-slate-400'
+            }`}
+          >
+            <Icon size={12} />
+            {label}
+            {!available && <span className="text-[8px] ml-1 normal-case font-bold opacity-60">pending</span>}
+          </button>
+        ))}
+      </div>
 
-          {!loading && noResults && (
-            <div className="bg-amber-50 border-2 border-amber-200 rounded-2xl p-8 text-center space-y-2">
-              <div className="text-3xl">⏳</div>
-              <p className="font-black text-amber-900">Not published yet</p>
-              <p className="text-amber-700 text-xs">Official results appear here after each stage completes.</p>
-            </div>
-          )}
-
-          {!loading && !noResults && (
-            <>
-              {/* Sub-tabs */}
-              <div className="flex gap-2 bg-slate-50 border border-slate-100 rounded-2xl p-1.5">
-                {tabs.map(({ id, label, available, icon: Icon }) => (
-                  <button
-                    key={id}
-                    onClick={() => available && setSection(id)}
-                    disabled={!available}
-                    className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wide transition-all ${
-                      section === id ? 'bg-slate-950 text-white shadow-md'
-                      : available ? 'hover:bg-slate-100 text-slate-500'
-                      : 'opacity-30 cursor-not-allowed text-slate-400'
-                    }`}
-                  >
-                    <Icon size={12} /> {label}
-                    {!available && <span className="text-[8px] ml-0.5 normal-case font-bold opacity-60">pending</span>}
-                  </button>
-                ))}
-              </div>
-
-              {/* ── GROUP STAGE ── */}
-              {section === 'groups' && hasGroups && (
-                <div className="space-y-4">
-                  {/* Top 12 qualifiers strip */}
-                  {offThirds.length === 0 && (
-                    <div className="bg-blue-50 border border-blue-100 rounded-2xl p-4">
-                      <p className="text-[9px] font-black text-blue-600 uppercase tracking-widest mb-3">12 Group Winners & Runners-Up Advancing</p>
-                      <div className="flex flex-wrap gap-1.5">
-                        {Object.entries(offStandings).flatMap(([, grp]: any) =>
-                          [1, 2].map(r => grp[r]).filter(Boolean)
-                        ).map(tid => {
-                          const t = getTeam(tid);
-                          return t ? (
-                            <div key={tid} className="flex items-center gap-1.5 bg-white border border-blue-100 rounded-lg px-2.5 py-1.5">
-                              <img src={`https://flagcdn.com/w40/${t.c}.png`} className="w-4 h-2.5 object-cover rounded shadow-sm flex-shrink-0" alt="" />
-                              <span className="text-[10px] font-black text-slate-700">{t.n}</span>
-                            </div>
-                          ) : null;
-                        })}
-                      </div>
+      {/* ════════════════════════════════════════════
+          GROUP STAGE
+      ════════════════════════════════════════════ */}
+      {section === 'groups' && hasGroups && (
+        <div className="space-y-5">
+          {/* Qualification summary */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {/* Group winners & runners-up */}
+            <div className="md:col-span-2 bg-blue-50 border border-blue-100 rounded-2xl p-5">
+              <p className="text-[9px] font-black text-blue-700 uppercase tracking-widest mb-3">
+                ✓ Advancing — Group Winners & Runners-Up (24 teams)
+              </p>
+              <div className="flex flex-wrap gap-1.5">
+                {Object.entries(offStandings).flatMap(([, grp]: any) =>
+                  [1, 2].map(r => grp[r]).filter(Boolean)
+                ).map(tid => {
+                  const t = getTeam(tid);
+                  return t ? (
+                    <div key={tid} className="flex items-center gap-1.5 bg-white border border-blue-100 rounded-lg px-2.5 py-1.5">
+                      <img src={`https://flagcdn.com/w40/${t.c}.png`} className="w-4 h-2.5 object-cover rounded flex-shrink-0" alt="" />
+                      <span className="text-[10px] font-black text-slate-700">{t.n}</span>
                     </div>
-                  )}
+                  ) : null;
+                })}
+              </div>
+            </div>
+            {/* Best 8 thirds */}
+            <div className={`rounded-2xl p-5 border ${offThirds.length > 0 ? 'bg-amber-50 border-amber-200' : 'bg-slate-50 border-slate-200'}`}>
+              <p className="text-[9px] font-black uppercase tracking-widest mb-3 text-amber-700">
+                {offThirds.length > 0 ? `✓ Best 8 Thirds — ${thirdsHits}/8 you picked` : '⏳ Best 8 Thirds — pending'}
+              </p>
+              {offThirds.length > 0 ? (
+                <div className="space-y-1.5">
+                  {offThirds.map(tid => {
+                    const t = getTeam(tid);
+                    const iPicked = myThirds.includes(tid);
+                    return t ? (
+                      <div key={tid} className={`flex items-center gap-2 rounded-xl px-3 py-2 border ${iPicked ? 'bg-emerald-50 border-emerald-200' : 'bg-white border-slate-100'}`}>
+                        <img src={`https://flagcdn.com/w40/${t.c}.png`} className="w-4 h-2.5 object-cover rounded flex-shrink-0" alt="" />
+                        <span className="text-[10px] font-black text-slate-800 flex-1 truncate">{t.n}</span>
+                        {iPicked
+                          ? <span className="text-[8px] font-black text-emerald-600 flex-shrink-0">✓ +0</span>
+                          : <span className="text-[8px] font-bold text-slate-300 flex-shrink-0">missed</span>}
+                      </div>
+                    ) : null;
+                  })}
+                </div>
+              ) : (
+                <p className="text-xs text-slate-400 italic">Admin hasn't published the best thirds yet.</p>
+              )}
+            </div>
+          </div>
 
-                  {/* All 12 group standings */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-                    {Object.entries(offStandings).map(([gid, grp]: any) => (
-                      <div key={gid} className="bg-slate-50 border border-slate-200 rounded-2xl p-4">
-                        <h4 className="text-[9px] font-black text-slate-400 uppercase tracking-widest font-mono mb-3">Group {gid}</h4>
-                        <div className="space-y-2">
-                          {[1, 2, 3].map(r => {
-                            const t = grp[r] ? getTeam(grp[r]) : null;
-                            const advancing = r <= 2;
-                            return (
-                              <div key={r} className={`flex items-center gap-2 rounded-xl px-3 py-2 border ${advancing ? 'bg-white border-emerald-100' : 'bg-white border-slate-100 opacity-70'}`}>
-                                <span className={`text-[9px] font-black w-4 ${advancing ? 'text-emerald-600' : 'text-slate-300'}`}>{r}</span>
-                                {t?.c && <img src={`https://flagcdn.com/w40/${t.c}.png`} className="w-5 h-3.5 object-cover rounded shadow-sm flex-shrink-0" alt="" />}
-                                <span className="text-[11px] font-black text-slate-800 truncate flex-1">{t?.n || '—'}</span>
-                                {advancing && <span className="text-[8px] font-black text-emerald-500 flex-shrink-0">✓</span>}
-                              </div>
-                            );
-                          })}
+          {/* Your group stage score bar */}
+          <div className="bg-white border border-slate-100 rounded-2xl p-5 shadow-sm">
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Your Group Stage Score</p>
+              <span className="text-lg font-black text-blue-600">{groupPts} <span className="text-slate-400 text-sm font-bold">/ 72 pts</span></span>
+            </div>
+            <div className="h-2.5 bg-slate-100 rounded-full overflow-hidden">
+              <div className="h-full rounded-full bg-gradient-to-r from-blue-500 to-emerald-500 transition-all" style={{ width: `${Math.round((groupPts / 72) * 100)}%` }} />
+            </div>
+          </div>
+
+          {/* All 12 group cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+            {Object.entries(offStandings).map(([gid, grp]: any) => {
+              const myGrp = myStandings[gid] || {};
+              const hits  = [1,2,3].filter(r => grp[r] && myGrp[r] === grp[r]).length;
+              return (
+                <div key={gid} className={`bg-white border-2 rounded-2xl p-4 ${hits === 3 ? 'border-emerald-300' : hits > 0 ? 'border-blue-200' : 'border-slate-200'}`}>
+                  <div className="flex items-center justify-between mb-3">
+                    <h4 className="text-[9px] font-black text-slate-400 uppercase tracking-widest font-mono">Group {gid}</h4>
+                    <span className={`text-[9px] font-black px-2 py-0.5 rounded-lg ${hits === 3 ? 'bg-emerald-100 text-emerald-700' : hits > 0 ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-400'}`}>
+                      {hits}/3 · +{hits * 2}pts
+                    </span>
+                  </div>
+                  {/* Column headers */}
+                  <div className="grid grid-cols-[18px_1fr_1fr] gap-1 mb-2">
+                    <div /><p className="text-[8px] font-black text-slate-400 uppercase">Official</p><p className="text-[8px] font-black text-slate-400 uppercase">Your Pick</p>
+                  </div>
+                  {[1, 2, 3].map(r => {
+                    const offT = grp[r] ? getTeam(grp[r]) : null;
+                    const myT  = myGrp[r] ? getTeam(myGrp[r]) : null;
+                    const correct = !!(grp[r] && myGrp[r] === grp[r]);
+                    return (
+                      <div key={r} className={`grid grid-cols-[18px_1fr_1fr] gap-1 items-center rounded-xl p-1.5 mb-1 ${correct ? 'bg-emerald-50' : 'bg-slate-50'}`}>
+                        <span className={`text-[8px] font-black text-center ${r <= 2 ? 'text-emerald-600' : 'text-slate-300'}`}>{r}</span>
+                        <div className="flex items-center gap-1 min-w-0">
+                          {offT?.c && <img src={`https://flagcdn.com/w40/${offT.c}.png`} className="w-4 h-2.5 object-cover rounded flex-shrink-0" alt="" />}
+                          <span className="text-[10px] font-black truncate text-slate-800">{offT?.n || '—'}</span>
+                        </div>
+                        <div className="flex items-center gap-1 min-w-0">
+                          {correct
+                            ? <span className="text-[9px] font-black text-emerald-600 flex items-center gap-0.5"><CheckCircle2 size={9}/> +2</span>
+                            : <>{myT?.c && <img src={`https://flagcdn.com/w40/${myT.c}.png`} className="w-4 h-2.5 object-cover rounded flex-shrink-0 opacity-50" alt="" />}
+                              <span className="text-[10px] font-bold truncate text-slate-400">{myT?.n || '—'}</span></>
+                          }
                         </div>
                       </div>
-                    ))}
+                    );
+                  })}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* ════════════════════════════════════════════
+          KNOCKOUT BRACKET
+      ════════════════════════════════════════════ */}
+      {section === 'knockout' && hasKnockout && (
+        <div className="space-y-6">
+          {/* Knockout score bar */}
+          <div className="bg-white border border-slate-100 rounded-2xl p-5 shadow-sm">
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Your Knockout Score</p>
+              <span className="text-lg font-black text-purple-600">{knockPts} <span className="text-slate-400 text-sm font-bold">/ 180 pts</span></span>
+            </div>
+            <div className="h-2.5 bg-slate-100 rounded-full overflow-hidden">
+              <div className="h-full rounded-full bg-gradient-to-r from-purple-500 to-pink-500 transition-all" style={{ width: `${Math.round((knockPts / 180) * 100)}%` }} />
+            </div>
+            <p className="text-[10px] text-slate-400 font-bold mt-2">R32/R16/QF/SF = +5 pts each · 3rd Place = +10 · Final = +20</p>
+          </div>
+
+          {/* Round-by-round match cards */}
+          {ROUNDS.map(round => {
+            const roundMatches = round.ids.filter(mid => offBracket[mid]);
+            if (roundMatches.length === 0) return (
+              <div key={round.key} className="bg-slate-50 border border-dashed border-slate-200 rounded-2xl p-5">
+                <div className="flex items-center gap-3">
+                  <div className="w-2 h-2 rounded-full bg-slate-300" />
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{round.label} <span className="font-normal normal-case">— results pending</span></p>
+                  <span className="text-[9px] text-slate-300 font-bold">+{round.pts} pts per match</span>
+                </div>
+              </div>
+            );
+
+            const roundCorrect = roundMatches.filter(mid => myBracket[mid]?.id === offBracket[mid]?.id).length;
+            const roundEarned  = roundMatches.reduce((s, mid) => myBracket[mid]?.id === offBracket[mid]?.id ? s + round.pts : s, 0);
+            const isFinal      = round.key === 'f';
+            const is3rd        = round.key === '3p';
+
+            return (
+              <div key={round.key} className={`rounded-[2rem] border-2 overflow-hidden shadow-sm ${isFinal ? 'border-amber-300 bg-amber-50' : is3rd ? 'border-orange-200 bg-orange-50' : 'border-slate-200 bg-white'}`}>
+                {/* Round header */}
+                <div className={`flex items-center justify-between px-6 py-4 border-b ${isFinal ? 'border-amber-200 bg-amber-100/50' : is3rd ? 'border-orange-200 bg-orange-100/50' : 'border-slate-100 bg-slate-50'}`}>
+                  <div className="flex items-center gap-3">
+                    <span className={`text-xs font-black uppercase tracking-widest ${isFinal ? 'text-amber-800' : is3rd ? 'text-orange-800' : 'text-slate-700'}`}>{round.label}</span>
+                    <span className={`text-[9px] font-bold px-2 py-0.5 rounded-lg ${isFinal ? 'bg-amber-200 text-amber-800' : is3rd ? 'bg-orange-200 text-orange-800' : 'bg-purple-100 text-purple-700'}`}>+{round.pts} pts each</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-bold text-slate-400">{roundCorrect}/{roundMatches.length} correct</span>
+                    <span className={`text-sm font-black ${roundEarned > 0 ? 'text-emerald-600' : 'text-slate-400'}`}>+{roundEarned}pts</span>
                   </div>
                 </div>
-              )}
 
-              {/* ── KNOCKOUT ── */}
-              {section === 'knockout' && hasKnockout && (
-                <div className="space-y-5">
-                  {/* Top 12 qualifying thirds */}
-                  {offThirds.length > 0 && (
-                    <div className="bg-amber-50 border-2 border-amber-200 rounded-2xl p-5">
-                      <p className="text-[9px] font-black text-amber-700 uppercase tracking-widest mb-3">Best 8 Third-Place Teams</p>
-                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                        {offThirds.map(tid => {
-                          const t = getTeam(tid);
-                          return t ? (
-                            <div key={tid} className="flex items-center gap-2 bg-white border border-amber-200 rounded-xl px-3 py-2.5">
-                              <img src={`https://flagcdn.com/w40/${t.c}.png`} className="w-5 h-3.5 object-cover rounded shadow-sm flex-shrink-0" alt="" />
-                              <span className="text-[10px] font-black text-slate-800 truncate">{t.n}</span>
+                {/* Match cards grid */}
+                <div className={`p-5 grid gap-3 ${isFinal || is3rd ? 'grid-cols-1 max-w-md mx-auto' : 'grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4'}`}>
+                  {roundMatches.map(mid => {
+                    const offWinner = offBracket[mid];
+                    const myWinner  = myBracket[mid];
+                    const correct   = !!(offWinner && myWinner?.id === offWinner.id);
+                    const wrong     = !!(offWinner && myWinner && myWinner.id !== offWinner.id);
+                    const offT      = offWinner ? (getTeam(offWinner.id) || offWinner) : null;
+                    const myT       = myWinner  ? (getTeam(myWinner.id)  || myWinner)  : null;
+
+                    return (
+                      <div key={mid} className={`rounded-2xl border-2 overflow-hidden ${correct ? 'border-emerald-300 bg-emerald-50' : wrong ? 'border-red-200 bg-red-50' : 'border-slate-200 bg-white'}`}>
+                        {/* Winner row */}
+                        <div className={`px-4 py-3 flex items-center justify-between gap-2 ${correct ? 'bg-emerald-100/60' : wrong ? 'bg-red-100/40' : 'bg-slate-100/60'}`}>
+                          <div className="flex items-center gap-2 min-w-0">
+                            {offT?.c && <img src={`https://flagcdn.com/w40/${offT.c}.png`} className="w-6 h-4 object-cover rounded shadow-sm flex-shrink-0" alt="" />}
+                            <div className="min-w-0">
+                              <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest leading-none mb-0.5">Winner</p>
+                              <p className="text-xs font-black text-slate-900 truncate">{offT?.n || offWinner?.n || '—'}</p>
                             </div>
-                          ) : null;
-                        })}
+                          </div>
+                          {correct
+                            ? <span className="flex-shrink-0 bg-emerald-500 text-white text-[9px] font-black px-2 py-1 rounded-lg">+{round.pts}</span>
+                            : wrong
+                            ? <span className="flex-shrink-0 bg-red-400 text-white text-[9px] font-black px-2 py-1 rounded-lg">✗</span>
+                            : <span className="flex-shrink-0 text-slate-300 text-[9px] font-bold">—</span>
+                          }
+                        </div>
+                        {/* Your pick row */}
+                        <div className="px-4 py-2 flex items-center gap-2 border-t border-slate-100">
+                          <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest flex-shrink-0">Your pick:</span>
+                          {myT ? (
+                            <div className="flex items-center gap-1.5 min-w-0">
+                              {myT?.c && <img src={`https://flagcdn.com/w40/${myT.c}.png`} className={`w-4 h-2.5 object-cover rounded flex-shrink-0 ${wrong ? 'opacity-60' : ''}`} alt="" />}
+                              <span className={`text-[10px] font-black truncate ${correct ? 'text-emerald-700' : wrong ? 'text-red-500 line-through opacity-70' : 'text-slate-600'}`}>
+                                {myT?.n || myWinner?.n}
+                              </span>
+                            </div>
+                          ) : (
+                            <span className="text-[10px] text-slate-300 italic">No pick</span>
+                          )}
+                        </div>
                       </div>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* ════════════════════════════════════════════
+          PLAYER AWARDS
+      ════════════════════════════════════════════ */}
+      {section === 'awards' && (
+        <div className="space-y-4">
+          <div className="bg-white border border-slate-100 rounded-2xl p-5 shadow-sm">
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Your Awards Score</p>
+              <span className="text-lg font-black text-amber-600">{awardPts} <span className="text-slate-400 text-sm font-bold">/ 15 pts</span></span>
+            </div>
+            <div className="h-2.5 bg-slate-100 rounded-full overflow-hidden">
+              <div className="h-full rounded-full bg-gradient-to-r from-amber-400 to-yellow-500 transition-all" style={{ width: `${Math.round((awardPts / 15) * 100)}%` }} />
+            </div>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {[
+              { label: '🏅 Golden Ball (MVP)', offVal: official?.golden_ball,   myVal: mySub?.golden_ball,   pts: 5 },
+              { label: '👟 Golden Boot',        offVal: official?.golden_boot,   myVal: mySub?.golden_boot,   pts: 5 },
+              { label: '🧤 Golden Gloves',      offVal: official?.golden_gloves, myVal: mySub?.golden_gloves, pts: 5 },
+            ].map(({ label, offVal, myVal, pts }) => {
+              const normOff = normalizeName(offVal || '');
+              const normMy  = normalizeName(myVal  || '');
+              const locked  = !offVal;
+              const correct = !locked && normOff && normMy && normOff === normMy;
+              const wrong   = !locked && normOff && normMy && normOff !== normMy;
+              return (
+                <div key={label} className={`rounded-2xl border-2 p-5 ${correct ? 'bg-emerald-50 border-emerald-300' : wrong ? 'bg-red-50 border-red-200' : 'bg-white border-slate-200'}`}>
+                  <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-3">{label}</p>
+                  {locked ? (
+                    <div className="flex items-center gap-2 text-slate-300 mb-3">
+                      <Lock size={14} /><span className="text-sm font-bold italic">Announced at finale</span>
+                    </div>
+                  ) : (
+                    <div className="flex items-center justify-between mb-3">
+                      <p className="font-black text-slate-900 text-base">{normOff}</p>
+                      {correct
+                        ? <span className="bg-emerald-500 text-white text-[10px] font-black px-2.5 py-1 rounded-xl">+{pts}</span>
+                        : wrong
+                        ? <span className="bg-red-400 text-white text-[10px] font-black px-2.5 py-1 rounded-xl">✗</span>
+                        : null}
                     </div>
                   )}
-
-                  {/* Round-by-round winners */}
-                  {roundBuckets.map(round => (
-                    <div key={round.label} className="bg-white border border-slate-100 rounded-2xl p-5 shadow-sm">
-                      <div className="flex items-center justify-between mb-3">
-                        <h4 className="text-xs font-black text-slate-600 uppercase tracking-widest">{round.label}</h4>
-                        <span className="text-[9px] font-bold text-purple-600 bg-purple-50 border border-purple-100 px-2 py-0.5 rounded-lg">+{round.pts} pts</span>
-                      </div>
-                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                        {round.ids.map(mid => {
-                          const winner = offBracket[mid];
-                          const t = winner ? getTeam(winner.id) : null;
-                          return (
-                            <div key={mid} className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5">
-                              {t?.c && <img src={`https://flagcdn.com/w40/${t.c}.png`} className="w-5 h-3.5 object-cover rounded shadow-sm flex-shrink-0" alt="" />}
-                              <span className="text-[10px] font-black text-slate-800 truncate">{t?.n || winner?.n || '—'}</span>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  ))}
+                  <div className={`border-t pt-3 ${correct ? 'border-emerald-200' : wrong ? 'border-red-100' : 'border-slate-100'}`}>
+                    <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">Your pick</p>
+                    <p className={`text-sm font-black ${correct ? 'text-emerald-700' : wrong ? 'text-red-500 line-through opacity-70' : 'text-slate-600'}`}>
+                      {normMy || <span className="italic font-normal text-slate-300">No pick entered</span>}
+                    </p>
+                  </div>
                 </div>
-              )}
-
-              {/* ── PLAYER AWARDS ── */}
-              {section === 'awards' && (
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  {[
-                    { label: '🏅 Golden Ball (MVP)', val: official?.golden_ball   },
-                    { label: '👟 Golden Boot',        val: official?.golden_boot   },
-                    { label: '🧤 Golden Gloves',      val: official?.golden_gloves },
-                  ].map(({ label, val }) => (
-                    <div key={label} className="bg-slate-50 border-2 border-slate-200 rounded-2xl p-5">
-                      <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">{label}</p>
-                      {val ? (
-                        <p className="font-black text-slate-900 text-lg">{normalizeName(val)}</p>
-                      ) : (
-                        <div className="flex items-center gap-2 text-slate-300">
-                          <Lock size={14} />
-                          <span className="text-sm font-bold italic">Awarded at finale</span>
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </>
-          )}
+              );
+            })}
+          </div>
         </div>
       )}
     </div>
@@ -3615,8 +3803,8 @@ function LiveTracker({ bracketName, isAdmin, getTeam, toast }: {
         <span>Live points here are an early preview only — your official Stage 1 score (shown on the Standings tab) is calculated once the group stage finishes and matches the final official table exactly.</span>
       </div>
 
-      {/* ── Official Results Panel ── */}
-      <OfficialResultsPanel getTeam={getTeam} />
+      {/* ── Live Knockout View: full bracket results + your picks vs reality ── */}
+      <LiveKnockoutView bracketName={bracketName} getTeam={getTeam} />
     </div>
   );
 }
