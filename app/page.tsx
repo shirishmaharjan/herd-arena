@@ -527,7 +527,7 @@ function AdminPanel({
 export default function HerdArenaFinalMaster() {
   const [hasMounted, setHasMounted] = useState(false);
   const [isEntryComplete, setIsEntryComplete] = useState(false);
-  const [view, setView] = useState<'bracket' | 'leaderboard' | 'live'>('bracket');
+  const [view, setView] = useState<'bracket' | 'leaderboard' | 'live' | 'results'>('bracket');
   const [isAdmin, setIsAdmin] = useState(false);
   const [showAdminPanel, setShowAdminPanel] = useState(false);
   const [bracketName, setBracketName] = useState('');
@@ -1069,6 +1069,7 @@ export default function HerdArenaFinalMaster() {
           <div className="flex gap-2 items-center">
             <button onClick={() => setView('bracket')} className={`px-4 py-2 rounded-xl text-[10px] font-black transition ${view === 'bracket' ? 'bg-slate-950 text-white' : 'text-slate-400 hover:bg-slate-100'}`}>BRACKET</button>
             <button onClick={() => setView('leaderboard')} className={`px-4 py-2 rounded-xl text-[10px] font-black transition ${view === 'leaderboard' ? 'bg-slate-950 text-white' : 'text-slate-400 hover:bg-slate-100'}`}>STANDINGS</button>
+            <button onClick={() => setView('results')} className={`px-4 py-2 rounded-xl text-[10px] font-black transition flex items-center gap-1.5 ${view === 'results' ? 'bg-slate-950 text-white' : 'text-slate-400 hover:bg-slate-100'}`}><CheckCircle2 size={12} className={view === 'results' ? 'text-white' : 'text-emerald-500'} />RESULTS</button>
             <button onClick={() => setView('live')} className={`px-4 py-2 rounded-xl text-[10px] font-black transition flex items-center gap-1.5 ${view === 'live' ? 'bg-slate-950 text-white' : 'text-slate-400 hover:bg-slate-100'}`}><Zap size={12} className="text-amber-400" />LIVE</button>
             {isAdmin ? (
               <button
@@ -1448,6 +1449,8 @@ export default function HerdArenaFinalMaster() {
               </div>
 
             </div>
+          ) : view === 'results' ? (
+            <ResultsView bracketName={bracketName} getTeam={getTeam} />
           ) : (
             <LiveTracker bracketName={bracketName} isAdmin={isAdmin} getTeam={getTeam} toast={toast} />
           )}
@@ -1470,6 +1473,401 @@ export default function HerdArenaFinalMaster() {
   );
 }
 
+// ─── RESULTS VIEW ─────────────────────────────────────────────────────────────
+// Shows official results vs the current user's predictions across all stages.
+function ResultsView({ bracketName, getTeam }: { bracketName: string; getTeam: (id: string) => any }) {
+  const [official, setOfficial]   = useState<any>(null);
+  const [mySub,    setMySub]      = useState<any>(null);
+  const [loading,  setLoading]    = useState(true);
+  const [section,  setSection]    = useState<'groups' | 'knockout' | 'awards'>('groups');
+
+  useEffect(() => {
+    const load = async () => {
+      setLoading(true);
+      const [{ data: off }, { data: sub }] = await Promise.all([
+        supabase.from('official_results').select('*').order('created_at', { ascending: false }).limit(1).maybeSingle(),
+        supabase.from('submissions').select('*').eq('bracket_name', bracketName).maybeSingle(),
+      ]);
+      setOfficial(off || null);
+      setMySub(sub || null);
+      setLoading(false);
+    };
+    load();
+  }, [bracketName]);
+
+  if (loading) return (
+    <div className="flex flex-col items-center justify-center py-32 gap-3 text-slate-400">
+      <RefreshCw size={22} className="animate-spin" />
+      <p className="text-xs font-bold">Loading results...</p>
+    </div>
+  );
+
+  const noResults = !official || (!official.bracket_data?.standings && !official.bracket_data?.bracketWinners && !official.golden_boot && !official.golden_ball && !official.golden_gloves);
+
+  const offStandings    = official?.bracket_data?.standings    || {};
+  const offBracket      = official?.bracket_data?.bracketWinners || {};
+  const myStandings     = mySub?.bracket_data?.standings    || {};
+  const myBracket       = mySub?.bracket_data?.bracketWinners || {};
+
+  // Score tallies
+  let groupHits = 0, groupTotal = 0;
+  Object.keys(offStandings).forEach(gid =>
+    [1, 2, 3].forEach(r => {
+      if (offStandings[gid]?.[r]) {
+        groupTotal++;
+        if (myStandings[gid]?.[r] === offStandings[gid]?.[r]) groupHits++;
+      }
+    })
+  );
+
+  let knockHits = 0, knockTotal = 0;
+  Object.keys(offBracket).forEach(mid => {
+    if (offBracket[mid]?.id) {
+      knockTotal++;
+      if (myBracket[mid]?.id === offBracket[mid]?.id) knockHits++;
+    }
+  });
+
+  const awardPairs = [
+    { label: '🏅 Golden Ball', offVal: official?.golden_ball, myVal: mySub?.golden_ball },
+    { label: '👟 Golden Boot', offVal: official?.golden_boot, myVal: mySub?.golden_boot },
+    { label: '🧤 Golden Gloves', offVal: official?.golden_gloves, myVal: mySub?.golden_gloves },
+  ].filter(a => a.offVal);
+  const awardHits  = awardPairs.filter(a => normalizeName(a.myVal || '') === normalizeName(a.offVal || '')).length;
+
+  const groupPts  = groupHits * 2;
+  const knockPts  = Object.keys(offBracket).reduce((sum, mid) => {
+    if (myBracket[mid]?.id !== offBracket[mid]?.id) return sum;
+    const m = parseInt(mid.substring(1));
+    return sum + (m <= 102 ? 5 : m === 103 ? 10 : 20);
+  }, 0);
+  const awardPts  = awardHits * 5;
+  const totalPts  = groupPts + knockPts + awardPts;
+
+  const hasGroups   = Object.keys(offStandings).length > 0;
+  const hasKnockout = Object.keys(offBracket).length > 0;
+  const hasAwards   = awardPairs.length > 0;
+
+  const tabs = [
+    { id: 'groups',   label: 'Group Stage',  available: hasGroups,   pts: groupPts,  hits: groupHits,  total: groupTotal,  icon: Target },
+    { id: 'knockout', label: 'Knockout',      available: hasKnockout, pts: knockPts,  hits: knockHits,  total: knockTotal,  icon: Zap },
+    { id: 'awards',   label: 'Player Awards', available: hasAwards,   pts: awardPts,  hits: awardHits,  total: awardPairs.length, icon: Star },
+  ] as const;
+
+  return (
+    <div className="max-w-3xl mx-auto space-y-6">
+
+      {/* ── Hero header ── */}
+      <div className="bg-slate-950 rounded-[3rem] p-8 md:p-10 text-white shadow-2xl relative overflow-hidden">
+        <div className="absolute inset-0 opacity-[0.04]"
+          style={{ backgroundImage: 'radial-gradient(circle, #fff 1px, transparent 1px)', backgroundSize: '32px 32px' }} />
+        <div className="relative z-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+          <div>
+            <span className="inline-flex items-center gap-2 bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 px-4 py-1.5 rounded-full text-[10px] font-black uppercase mb-3">
+              <CheckCircle2 size={12} /> Official Results
+            </span>
+            <h2 className="text-3xl font-black italic tracking-tighter">
+              Your Picks vs <span className="text-emerald-400">Reality</span>
+            </h2>
+            <p className="text-slate-400 text-sm mt-1">
+              {bracketName} · See exactly where you scored and where you missed.
+            </p>
+          </div>
+          {/* Total score summary */}
+          {!noResults && (
+            <div className="flex gap-3 flex-shrink-0">
+              {[
+                { label: 'Group', pts: groupPts,  color: 'text-blue-400' },
+                { label: 'Knockout', pts: knockPts, color: 'text-purple-400' },
+                { label: 'Awards', pts: awardPts,  color: 'text-amber-400' },
+              ].map(({ label, pts, color }) => (
+                <div key={label} className="bg-white/5 border border-white/10 rounded-2xl px-4 py-3 text-center min-w-[64px]">
+                  <p className={`text-xl font-black tabular-nums ${color}`}>{pts}</p>
+                  <p className="text-[9px] font-bold text-slate-500 uppercase mt-0.5">{label}</p>
+                </div>
+              ))}
+              <div className="bg-white/10 border border-white/20 rounded-2xl px-4 py-3 text-center min-w-[64px]">
+                <p className="text-xl font-black tabular-nums text-white">{totalPts}</p>
+                <p className="text-[9px] font-bold text-slate-400 uppercase mt-0.5">Total</p>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* ── No results yet state ── */}
+      {noResults && (
+        <div className="bg-amber-50 border-2 border-amber-200 rounded-[2rem] p-10 text-center space-y-3">
+          <div className="text-4xl">⏳</div>
+          <h3 className="font-black text-amber-900 text-lg">Results Not Published Yet</h3>
+          <p className="text-amber-700 text-sm max-w-sm mx-auto">
+            Official results will appear here once the admin publishes them after each stage completes. Check back after the group stage, knockout rounds, and finale.
+          </p>
+        </div>
+      )}
+
+      {!noResults && (
+        <>
+          {/* ── Section tabs ── */}
+          <div className="flex gap-2 bg-white border border-slate-100 rounded-2xl p-1.5 shadow-sm">
+            {tabs.map(({ id, label, available, pts, hits, total, icon: Icon }) => (
+              <button
+                key={id}
+                onClick={() => available && setSection(id)}
+                disabled={!available}
+                className={`flex-1 flex flex-col items-center gap-1 px-3 py-3 rounded-xl text-center transition-all ${
+                  section === id
+                    ? 'bg-slate-950 text-white shadow-md'
+                    : available
+                    ? 'hover:bg-slate-50 text-slate-500'
+                    : 'opacity-30 cursor-not-allowed text-slate-400'
+                }`}
+              >
+                <Icon size={14} className={section === id ? 'text-white' : ''} />
+                <span className="text-[10px] font-black uppercase tracking-wide">{label}</span>
+                {available ? (
+                  <span className={`text-[9px] font-bold ${section === id ? 'text-slate-400' : 'text-slate-400'}`}>
+                    {hits}/{total} · +{pts}pts
+                  </span>
+                ) : (
+                  <span className="text-[9px] font-bold text-slate-300">Pending</span>
+                )}
+              </button>
+            ))}
+          </div>
+
+          {/* ── GROUP STAGE ── */}
+          {section === 'groups' && hasGroups && (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                  {groupHits} of {groupTotal} positions correct · {groupPts} pts earned
+                </p>
+                <span className="text-[10px] font-bold text-slate-400 bg-slate-100 px-3 py-1 rounded-lg">
+                  +2 pts per correct position
+                </span>
+              </div>
+              {/* Hit rate bar */}
+              <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+                <div
+                  className="h-full rounded-full bg-gradient-to-r from-blue-500 to-emerald-500 transition-all"
+                  style={{ width: `${groupTotal > 0 ? Math.round((groupHits / groupTotal) * 100) : 0}%` }}
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                {Object.entries(GROUPS_DATA).map(([gid, g]: any) => {
+                  const offGroup = offStandings[gid] || {};
+                  const myGroup  = myStandings[gid]  || {};
+                  const hasOfficial = [1, 2, 3].some(r => offGroup[r]);
+                  const groupScore  = [1, 2, 3].filter(r => offGroup[r] && myGroup[r] === offGroup[r]).length;
+
+                  return (
+                    <div key={gid} className={`bg-white border-2 rounded-[2rem] p-5 shadow-sm ${hasOfficial ? (groupScore === 3 ? 'border-emerald-300' : groupScore > 0 ? 'border-blue-200' : 'border-slate-200') : 'border-dashed border-slate-200'}`}>
+                      <div className="flex items-center justify-between mb-3">
+                        <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest font-mono">Group {gid}</h3>
+                        {hasOfficial && (
+                          <span className={`text-[9px] font-black px-2 py-0.5 rounded-lg ${groupScore === 3 ? 'bg-emerald-100 text-emerald-700' : groupScore > 0 ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-500'}`}>
+                            {groupScore}/3 ✓
+                          </span>
+                        )}
+                      </div>
+                      {!hasOfficial ? (
+                        <p className="text-[10px] text-slate-300 italic">Not yet published</p>
+                      ) : (
+                        <div className="space-y-2">
+                          {/* Column headers */}
+                          <div className="grid grid-cols-[20px_1fr_1fr] gap-1 mb-1">
+                            <div />
+                            <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Official</p>
+                            <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Your Pick</p>
+                          </div>
+                          {[1, 2, 3].map(r => {
+                            const offTeam = offGroup[r] ? getTeam(offGroup[r]) : null;
+                            const myTeam  = myGroup[r]  ? getTeam(myGroup[r])  : null;
+                            const correct = !!(offGroup[r] && myGroup[r] === offGroup[r]);
+                            return (
+                              <div key={r} className={`grid grid-cols-[20px_1fr_1fr] gap-1 items-center rounded-xl p-1.5 ${correct ? 'bg-emerald-50' : 'bg-slate-50'}`}>
+                                <span className="text-[9px] font-black text-slate-400 text-center">{r}</span>
+                                {/* Official */}
+                                <div className="flex items-center gap-1.5 min-w-0">
+                                  {offTeam?.c && <img src={`https://flagcdn.com/w40/${offTeam.c}.png`} className="w-4 h-2.5 object-cover rounded shadow-sm flex-shrink-0" alt="" />}
+                                  <span className="text-[10px] font-black truncate text-slate-800">{offTeam?.n || '—'}</span>
+                                </div>
+                                {/* My pick */}
+                                <div className="flex items-center gap-1 min-w-0">
+                                  {correct ? (
+                                    <span className="text-[9px] font-black text-emerald-600 flex items-center gap-0.5"><CheckCircle2 size={10} /> +2</span>
+                                  ) : (
+                                    <>
+                                      {myTeam?.c && <img src={`https://flagcdn.com/w40/${myTeam.c}.png`} className="w-4 h-2.5 object-cover rounded shadow-sm flex-shrink-0 opacity-50" alt="" />}
+                                      <span className="text-[10px] font-bold truncate text-slate-400">{myTeam?.n || '—'}</span>
+                                    </>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* ── KNOCKOUT ── */}
+          {section === 'knockout' && hasKnockout && (() => {
+            // Build round buckets using same mNum logic as scoring:
+            // mNum 1–16=R32, 17–24=R16, 25–28=QF, 29–30=SF, 103=3rd, 104=Final
+            const allOffIds = Object.keys(offBracket);
+
+            const getRound = (mid: string) => {
+              const n = parseInt(mid.substring(1));
+              if (n <= 16)   return { label: 'Round of 32',    order: 0, pts: 5  };
+              if (n <= 24)   return { label: 'Round of 16',    order: 1, pts: 5  };
+              if (n <= 28)   return { label: 'Quarter-Finals', order: 2, pts: 5  };
+              if (n <= 30)   return { label: 'Semi-Finals',    order: 3, pts: 5  };
+              if (n === 103) return { label: '3rd Place',      order: 4, pts: 10 };
+              if (n === 104) return { label: 'Final',          order: 5, pts: 20 };
+              return { label: 'Other', order: 6, pts: 5 };
+            };
+
+            const roundMap: Record<string, { label: string; order: number; pts: number; ids: string[] }> = {};
+            allOffIds.forEach(mid => {
+              const r = getRound(mid);
+              if (!roundMap[r.label]) roundMap[r.label] = { ...r, ids: [] };
+              roundMap[r.label].ids.push(mid);
+            });
+            const rounds = Object.values(roundMap).sort((a, b) => a.order - b.order);
+
+            const renderRound = (ids: string[], ptsEach: number) => (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {ids.map(mid => {
+                  const offTeam = offBracket[mid];
+                  const myTeam  = myBracket[mid];
+                  const correct = !!(offTeam?.id && myTeam?.id && offTeam.id === myTeam.id);
+                  const offT    = offTeam?.id ? getTeam(offTeam.id) ?? offTeam : offTeam;
+                  const myT     = myTeam?.id  ? getTeam(myTeam.id)  ?? myTeam  : myTeam;
+                  return (
+                    <div key={mid} className={`flex items-center justify-between gap-2 rounded-2xl border-2 px-4 py-3 ${correct ? 'bg-emerald-50 border-emerald-200' : 'bg-slate-50 border-slate-200'}`}>
+                      <div className="flex items-center gap-2 min-w-0">
+                        {offT?.c && <img src={`https://flagcdn.com/w40/${offT.c}.png`} className="w-5 h-3.5 object-cover rounded shadow-sm flex-shrink-0" alt="" />}
+                        <span className="text-[11px] font-black truncate text-slate-800">{offT?.n || offTeam?.n || '—'}</span>
+                        <span className="text-[8px] font-bold text-slate-400 bg-slate-200 px-1.5 py-0.5 rounded-md flex-shrink-0">Official</span>
+                      </div>
+                      <div className="flex items-center gap-1.5 flex-shrink-0">
+                        {correct ? (
+                          <span className="text-[9px] font-black text-emerald-600 flex items-center gap-0.5 bg-emerald-100 px-2 py-0.5 rounded-lg"><CheckCircle2 size={10} /> +{ptsEach}</span>
+                        ) : (
+                          <div className="flex items-center gap-1">
+                            {myT?.c && <img src={`https://flagcdn.com/w40/${myT.c}.png`} className="w-4 h-2.5 object-cover rounded shadow-sm opacity-50" alt="" />}
+                            <span className="text-[10px] font-bold text-slate-400 truncate max-w-[80px]">{myT?.n || myTeam?.n || '—'}</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            );
+
+            return (
+              <div className="space-y-5">
+                <div className="flex items-center justify-between">
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                    {knockHits} of {knockTotal} correct · {knockPts} pts earned
+                  </p>
+                  <span className="text-[10px] font-bold text-slate-400 bg-slate-100 px-3 py-1 rounded-lg">
+                    R32/R16/QF/SF +5 · 3rd +10 · Final +20
+                  </span>
+                </div>
+                <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+                  <div
+                    className="h-full rounded-full bg-gradient-to-r from-purple-500 to-pink-500 transition-all"
+                    style={{ width: `${knockTotal > 0 ? Math.round((knockHits / knockTotal) * 100) : 0}%` }}
+                  />
+                </div>
+
+                {rounds.map(r => (
+                  <div key={r.label} className="bg-white border border-slate-100 rounded-[2rem] p-5 shadow-sm">
+                    <div className="flex items-center justify-between mb-3">
+                      <h3 className="text-xs font-black text-slate-600 uppercase tracking-widest">{r.label}</h3>
+                      <span className="text-[9px] font-bold text-purple-600 bg-purple-50 border border-purple-100 px-2 py-0.5 rounded-lg">+{r.pts} pts each</span>
+                    </div>
+                    {renderRound(r.ids, r.pts)}
+                  </div>
+                ))}
+              </div>
+            );
+          })()}
+
+          {/* ── PLAYER AWARDS ── */}
+          {section === 'awards' && (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                  {awardHits} of {awardPairs.length} awards correct · {awardPts} pts earned
+                </p>
+                <span className="text-[10px] font-bold text-slate-400 bg-slate-100 px-3 py-1 rounded-lg">+5 pts per correct pick</span>
+              </div>
+              <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+                <div
+                  className="h-full rounded-full bg-gradient-to-r from-amber-400 to-yellow-500 transition-all"
+                  style={{ width: `${awardPairs.length > 0 ? Math.round((awardHits / awardPairs.length) * 100) : 0}%` }}
+                />
+              </div>
+
+              {!hasAwards && (
+                <div className="bg-amber-50 border-2 border-amber-200 rounded-[2rem] p-8 text-center">
+                  <p className="text-amber-700 font-bold text-sm">Player awards are announced at the end of the tournament.</p>
+                </div>
+              )}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {[
+                  { label: '🏅 Golden Ball', offVal: official?.golden_ball,   myVal: mySub?.golden_ball,   locked: !official?.golden_ball   },
+                  { label: '👟 Golden Boot', offVal: official?.golden_boot,   myVal: mySub?.golden_boot,   locked: !official?.golden_boot   },
+                  { label: '🧤 Golden Gloves',offVal: official?.golden_gloves, myVal: mySub?.golden_gloves, locked: !official?.golden_gloves },
+                ].map(({ label, offVal, myVal, locked }) => {
+                  const normOff = normalizeName(offVal || '');
+                  const normMy  = normalizeName(myVal  || '');
+                  const correct = !locked && normOff && normMy && normOff === normMy;
+                  const wrong   = !locked && normOff && normMy && normOff !== normMy;
+                  return (
+                    <div key={label} className={`bg-white border-2 rounded-[2rem] p-6 shadow-sm ${correct ? 'border-emerald-300' : wrong ? 'border-red-200' : 'border-slate-200'}`}>
+                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">{label}</p>
+                      {locked ? (
+                        <div className="flex items-center gap-2 text-slate-400">
+                          <Lock size={14} />
+                          <span className="text-xs font-bold italic">Announced at finale</span>
+                        </div>
+                      ) : (
+                        <div className="space-y-3">
+                          <div>
+                            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Official Winner</p>
+                            <p className="font-black text-slate-900 text-base">{normOff || '—'}</p>
+                          </div>
+                          <div className={`rounded-xl px-3 py-2 ${correct ? 'bg-emerald-50' : 'bg-slate-50'}`}>
+                            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-0.5">Your Pick</p>
+                            <p className={`font-black text-sm ${correct ? 'text-emerald-700' : 'text-slate-500'}`}>{normMy || '—'}</p>
+                          </div>
+                          {correct && <p className="text-emerald-600 text-[10px] font-black flex items-center gap-1"><CheckCircle2 size={11} /> Correct! +5 pts</p>}
+                          {wrong   && <p className="text-red-400 text-[10px] font-black flex items-center gap-1"><X size={11} /> Missed this one</p>}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
 // ─── STANDINGS BANNER ─────────────────────────────────────────────────────────
 // Displays last-updated timestamp + a contextual note about scoring stage.
 function StandingsBanner() {
@@ -1479,31 +1877,35 @@ function StandingsBanner() {
 
   useEffect(() => {
     const load = async () => {
-      // Fetch most recently updated submission timestamp + count
-      const { data } = await supabase
+      // Participant count + stage detection from submissions score columns
+      const { data: subs } = await supabase
         .from('submissions')
-        .select('points, group_points, knockout_points, awards_points, created_at')
-        .order('created_at', { ascending: false });
-      if (!data || data.length === 0) return;
-      setParticipantCount(data.length);
+        .select('points, group_points, knockout_points, awards_points');
+      if (subs && subs.length > 0) {
+        setParticipantCount(subs.length);
+        const anyKnockout = subs.some((r: any) => (r.knockout_points ?? 0) > 0);
+        const anyAwards   = subs.some((r: any) => (r.awards_points ?? 0) > 0);
+        const anyGroup    = subs.some((r: any) => (r.group_points ?? 0) > 0);
+        if (anyAwards) {
+          setNote('Results include Group Stage, Knockout rounds & Player Award bonuses.');
+        } else if (anyKnockout) {
+          setNote('Results include Group Stage + Knockout stage scores. Player Awards pending.');
+        } else if (anyGroup) {
+          setNote('Results after completion of completed Group Stage matchdays. Knockout stage begins next.');
+        } else {
+          setNote('Scores update automatically as each stage is completed.');
+        }
+      }
 
-      // Use the most recent created_at as a proxy for last score update
-      setLastUpdated(data[0].created_at);
-
-      // Determine which stage we're in based on score columns
-      const anyKnockout = data.some((r: any) => (r.knockout_points ?? 0) > 0);
-      const anyAwards   = data.some((r: any) => (r.awards_points ?? 0) > 0);
-      const anyGroup    = data.some((r: any) => (r.group_points ?? 0) > 0);
-      const groupDone   = anyGroup && !anyKnockout;
-
-      if (anyAwards) {
-        setNote('Results include Group Stage, Knockout rounds & Player Award bonuses.');
-      } else if (anyKnockout) {
-        setNote('Results include Group Stage + Knockout stage scores. Player Awards pending.');
-      } else if (groupDone) {
-        setNote('Results after completion of all 12 Group Stage matchdays. Knockout stage begins next.');
-      } else {
-        setNote('Scores update automatically as each stage is completed.');
+      // Timestamp: read from official_results — this is updated whenever admin saves/recalculates
+      const { data: official } = await supabase
+        .from('official_results')
+        .select('created_at')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (official?.created_at) {
+        setLastUpdated(official.created_at);
       }
     };
     load();
