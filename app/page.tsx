@@ -4,7 +4,7 @@ import {
   Trophy, Check, Award, Info, ShieldCheck, Save, ArrowRight,
   Database, Star, Search, Users, Lock, Unlock, ChevronUp, ChevronDown,
   Zap, Target, Crown, Medal, RefreshCw, X, AlertCircle, CheckCircle2, Download,
-  TrendingUp, TrendingDown, Flame, Swords, ChevronRight
+  TrendingUp, TrendingDown, Flame, Swords, ChevronRight, BarChart2
 } from 'lucide-react';
 import { GROUPS_DATA, BRACKET_MAPPING } from '../constants/teams';
 import { supabase } from '../lib/supabase';
@@ -253,7 +253,7 @@ function AdminPanel({
   const [submissions, setSubmissions] = useState<any[]>([]);
   const [official, setOfficial] = useState<any>(null);
   const [loading, setLoading] = useState(false);
-  const [officialAwards, setOfficialAwards] = useState({ ball: '', boot: '', gloves: '', bootGoals: 0 });
+  const [officialAwards, setOfficialAwards] = useState({ ball: '', boot: '', gloves: '' });
   const [recalcDone, setRecalcDone] = useState(false);
 
   useEffect(() => {
@@ -276,10 +276,9 @@ function AdminPanel({
     if (data) {
       setOfficial(data);
       setOfficialAwards({
-        ball:      data.golden_ball   || '',
-        boot:      data.golden_boot   || '',
-        gloves:    data.golden_gloves || '',
-        bootGoals: data.boot_goals    || 0,
+        ball: data.golden_ball || '',
+        boot: data.golden_boot || '',
+        gloves: data.golden_gloves || '',
       });
     }
   };
@@ -358,10 +357,9 @@ function AdminPanel({
     const { error } = await supabase
       .from('official_results')
       .update({
-        golden_ball:   officialAwards.ball,
-        golden_boot:   officialAwards.boot,
+        golden_ball: officialAwards.ball,
+        golden_boot: officialAwards.boot,
         golden_gloves: officialAwards.gloves,
-        boot_goals:    officialAwards.bootGoals,
       })
       .eq('id', official.id);
     if (error) toast.error(error.message);
@@ -414,13 +412,12 @@ function AdminPanel({
                 <h3 className="text-white font-black mb-4 flex items-center gap-2"><Star size={16} className="text-yellow-400" /> Player Awards (Official)</h3>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   {[
-                    { l: '🏅 Golden Ball (MVP)', k: 'ball',   hint: 'Confirmed at finale' },
-                    { l: '👟 Golden Boot',       k: 'boot',   hint: 'Update after each matchday' },
-                    { l: '🧤 Golden Gloves',     k: 'gloves', hint: 'Update after each matchday' },
+                    { l: '🏅 Golden Ball (MVP)', k: 'ball' },
+                    { l: '👟 Golden Boot', k: 'boot' },
+                    { l: '🧤 Golden Gloves', k: 'gloves' },
                   ].map(a => (
                     <div key={a.k}>
-                      <label className="text-slate-400 text-[10px] uppercase font-black block mb-1">{a.l}</label>
-                      <p className="text-slate-600 text-[9px] mb-2">{a.hint}</p>
+                      <label className="text-slate-400 text-[10px] uppercase font-black block mb-2">{a.l}</label>
                       <input
                         type="text"
                         className="w-full bg-slate-800 border border-slate-700 rounded-xl p-3 text-white font-bold text-sm outline-none focus:border-emerald-500 transition"
@@ -428,15 +425,6 @@ function AdminPanel({
                         value={(officialAwards as any)[a.k]}
                         onChange={e => setOfficialAwards(p => ({ ...p, [a.k]: e.target.value }))}
                       />
-                      {a.k === 'boot' && (
-                        <input
-                          type="number" min={0}
-                          className="w-full mt-2 bg-slate-800 border border-slate-700 rounded-xl p-3 text-white font-bold text-sm outline-none focus:border-emerald-500 transition"
-                          placeholder="Current goals (e.g. 5)"
-                          value={officialAwards.bootGoals || ''}
-                          onChange={e => setOfficialAwards(p => ({ ...p, bootGoals: Number(e.target.value) }))}
-                        />
-                      )}
                     </div>
                   ))}
                 </div>
@@ -1390,7 +1378,7 @@ export default function HerdArenaFinalMaster() {
           ) : view === 'leaderboard' ? (
             <div className="max-w-2xl mx-auto space-y-12">
 
-              {/* SECTION 1 — Group Stage + Round of 32 */}
+              {/* SECTION 1 — Group Stage */}
               <div className="bg-white border border-slate-100 rounded-[3rem] p-8 md:p-10 shadow-xl">
                 <div className="flex items-center gap-3 mb-2">
                   <div className="bg-blue-600 p-3 rounded-2xl"><Target size={20} className="text-white" /></div>
@@ -1399,11 +1387,12 @@ export default function HerdArenaFinalMaster() {
                     <p className="text-slate-400 text-xs">Group Stage</p>
                   </div>
                 </div>
-                <div className="mb-1">
+                <div className="flex flex-wrap gap-2 mb-1">
                   <span className="inline-flex items-center gap-1.5 bg-blue-50 border border-blue-100 text-blue-700 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wide">
                     Max 72 pts available
                   </span>
                 </div>
+                <LastUpdatedBadge />
                 <PointsBreakdownCard stage="group" />
                 <LeaderboardSection scoreField="group_points" label="group stage" showWinner winnerLabel="Stage 1 Leader" />
               </div>
@@ -1426,7 +1415,7 @@ export default function HerdArenaFinalMaster() {
                 <LeaderboardSection scoreField="knockout_points" label="knockout stage" cumulative showWinner winnerLabel="Stage 2 Leader" />
               </div>
 
-              {/* SECTION 3 — Final with Player Honors */}
+              {/* SECTION 3 — Final Championship */}
               <div className="bg-white border border-slate-100 rounded-[3rem] p-8 md:p-10 shadow-xl">
                 <div className="flex items-center gap-3 mb-2">
                   <div className="bg-amber-500 p-3 rounded-2xl"><Trophy size={20} className="text-white" /></div>
@@ -1467,6 +1456,233 @@ export default function HerdArenaFinalMaster() {
   );
 }
 
+// ─── LAST UPDATED BADGE ───────────────────────────────────────────────────────
+function LastUpdatedBadge() {
+  const [lastCalc, setLastCalc]     = useState<string | null>(null);
+  const [groupsDone, setGroupsDone] = useState(0);
+
+  useEffect(() => {
+    const load = async () => {
+      const { data: sub } = await supabase
+        .from('submissions')
+        .select('updated_at')
+        .order('updated_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (sub?.updated_at) setLastCalc(sub.updated_at);
+
+      const { data: off } = await supabase
+        .from('official_results')
+        .select('bracket_data')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (off?.bracket_data?.standings) {
+        const s = off.bracket_data.standings as Record<string, Record<number, string>>;
+        setGroupsDone(Object.keys(s).filter(g => [1,2,3].every(r => s[g]?.[r])).length);
+      }
+    };
+    load();
+  }, []);
+
+  if (!lastCalc && groupsDone === 0) return null;
+
+  const fmt = lastCalc
+    ? new Date(lastCalc).toLocaleString('en-GB', { day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' })
+    : null;
+
+  return (
+    <div className="flex flex-wrap gap-2 items-center mt-2 mb-3">
+      {fmt && (
+        <span className="inline-flex items-center gap-1.5 bg-slate-50 border border-slate-200 text-slate-500 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wide">
+          <RefreshCw size={9} /> Last updated {fmt}
+        </span>
+      )}
+      {groupsDone > 0 && (
+        <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wide border
+          ${groupsDone === 12 ? 'bg-emerald-50 border-emerald-200 text-emerald-700' : 'bg-amber-50 border-amber-200 text-amber-700'}`}>
+          {groupsDone === 12 ? '✅' : '⏳'} {groupsDone}/12 groups complete
+        </span>
+      )}
+    </div>
+  );
+}
+
+// ─── POINTS DISTRIBUTION CHART ────────────────────────────────────────────────
+// SVG histogram showing how scores are spread across all participants.
+// Bins of 6 pts each (0-6, 6-12 ... 66-72) for group stage.
+function PointsDistributionChart({
+  list,
+  maxBin,
+  color = '#3b82f6',
+  label = 'pts',
+}: {
+  list: number[];
+  maxBin: number;
+  color?: string;
+  label?: string;
+}) {
+  if (list.length === 0) return null;
+
+  const BIN_SIZE = Math.ceil(maxBin / 10);
+  const numBins  = Math.ceil(maxBin / BIN_SIZE);
+  const bins     = Array(numBins).fill(0);
+  list.forEach(v => {
+    const idx = Math.min(Math.floor(v / BIN_SIZE), numBins - 1);
+    bins[idx]++;
+  });
+  const maxCount  = Math.max(...bins, 1);
+  const W = 480, H = 80;
+  const barW = W / numBins;
+
+  const mean   = list.reduce((a, b) => a + b, 0) / list.length;
+  const sorted = [...list].sort((a, b) => a - b);
+  const median = sorted[Math.floor(sorted.length / 2)];
+  const spread = Math.max(...list) - Math.min(...list);
+
+  return (
+    <div className="mb-5">
+      <div className="flex items-center justify-between mb-2">
+        <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
+          <BarChart2 size={10} /> Score Distribution
+        </p>
+        <div className="flex gap-3">
+          {[
+            { l: 'Avg', v: mean.toFixed(1) },
+            { l: 'Median', v: median },
+            { l: 'Spread', v: spread },
+          ].map(({ l, v }) => (
+            <span key={l} className="text-[9px] font-black text-slate-400">
+              {l}: <span className="text-slate-700">{v}</span>
+            </span>
+          ))}
+        </div>
+      </div>
+      <div className="bg-slate-50 rounded-2xl p-3 border border-slate-100">
+        <svg viewBox={`0 0 ${W} ${H}`} className="w-full" style={{ height: 64 }}>
+          {bins.map((count, i) => {
+            const bh  = (count / maxCount) * (H - 18);
+            const x   = i * barW + 2;
+            const y   = H - 14 - bh;
+            const mid = i * BIN_SIZE + BIN_SIZE / 2;
+            const isHot = count === maxCount;
+            return (
+              <g key={i}>
+                <rect
+                  x={x} y={y} width={barW - 4} height={bh}
+                  rx={3} fill={isHot ? color : color + '55'}
+                />
+                {count > 0 && (
+                  <text x={x + (barW - 4) / 2} y={y - 2} textAnchor="middle" fontSize="7" fill={isHot ? color : '#94a3b8'} fontWeight="800">
+                    {count}
+                  </text>
+                )}
+                <text x={x + (barW - 4) / 2} y={H - 2} textAnchor="middle" fontSize="7" fill="#cbd5e1" fontWeight="700">
+                  {mid}
+                </text>
+              </g>
+            );
+          })}
+          {/* Mean line */}
+          <line
+            x1={(mean / maxBin) * W} y1={0}
+            x2={(mean / maxBin) * W} y2={H - 14}
+            stroke={color} strokeWidth="1.5" strokeDasharray="3 2" opacity="0.7"
+          />
+        </svg>
+        <p className="text-[8px] text-slate-300 font-bold text-center mt-0.5">
+          Dashed line = average · Darker bar = most common score range
+        </p>
+      </div>
+    </div>
+  );
+}
+
+// ─── GAP ANALYSIS PANEL ───────────────────────────────────────────────────────
+// Shows competitive context: how close is the race, who's within striking distance.
+function GapAnalysisPanel({ list, getScore }: { list: any[]; getScore: (u: any) => number }) {
+  if (list.length < 2) return null;
+
+  const scores   = list.map(getScore);
+  const top      = scores[0];
+  const second   = scores[1];
+  const gap      = top - second;
+  const within5  = scores.filter(s => top - s <= 5).length - 1;
+  const within10 = scores.filter(s => top - s <= 10).length - 1;
+  const bottom   = scores[scores.length - 1];
+  const totalGap = top - bottom;
+
+  const drama = gap === 0
+    ? '🔥 Dead heat at the top — anyone can take it!'
+    : gap <= 2
+    ? `⚡ Just ${gap} pt${gap > 1 ? 's' : ''} separating 1st and 2nd — incredibly tight`
+    : gap <= 6
+    ? `${within5 > 0 ? `${within5} player${within5 > 1 ? 's' : ''} within 5 pts of the lead` : `${gap} pts gap at the top`}`
+    : `${list[0].bracket_name.split(' ')[0]} leads by ${gap} pts — can anyone catch up?`;
+
+  return (
+    <div className="bg-gradient-to-r from-slate-50 to-slate-100 border border-slate-200 rounded-2xl px-5 py-4 mb-4 flex flex-wrap gap-4 items-center justify-between">
+      <p className="text-xs font-black text-slate-700 flex-1">{drama}</p>
+      <div className="flex gap-4 flex-shrink-0">
+        <div className="text-center">
+          <p className="text-lg font-black text-slate-800">{within5}</p>
+          <p className="text-[8px] font-black text-slate-400 uppercase tracking-wide">within 5pts</p>
+        </div>
+        <div className="text-center">
+          <p className="text-lg font-black text-slate-800">{within10}</p>
+          <p className="text-[8px] font-black text-slate-400 uppercase tracking-wide">within 10pts</p>
+        </div>
+        <div className="text-center">
+          <p className="text-lg font-black text-slate-800">{totalGap}</p>
+          <p className="text-[8px] font-black text-slate-400 uppercase tracking-wide">top→bottom</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── STACKED SCORE BAR ────────────────────────────────────────────────────────
+// Replaces the plain progress bar with a segmented G+K+A breakdown.
+// Only shows K and A segments when they have non-zero values.
+function StackedScoreBar({
+  groupPts, knockoutPts, awardsPts, maxPts, isFirst, isFinal,
+}: {
+  groupPts: number; knockoutPts: number; awardsPts: number;
+  maxPts: number; isFirst: boolean; isFinal: boolean;
+}) {
+  const total   = isFinal ? groupPts + knockoutPts + awardsPts : groupPts;
+  const pct     = Math.round((total / Math.max(maxPts, 1)) * 100);
+  const gPct    = Math.round((groupPts   / Math.max(maxPts, 1)) * 100);
+  const kPct    = Math.round((knockoutPts / Math.max(maxPts, 1)) * 100);
+  const aPct    = Math.round((awardsPts  / Math.max(maxPts, 1)) * 100);
+  const hasK    = knockoutPts > 0;
+  const hasA    = awardsPts  > 0;
+
+  if (!isFinal) {
+    // Simple single-color bar for Stage 1 / Stage 2
+    return (
+      <div className={`absolute left-0 top-0 h-full rounded-[1.8rem] transition-all ${isFirst ? 'opacity-20 bg-blue-400' : 'opacity-10 bg-blue-600'}`}
+        style={{ width: `${pct}%` }} />
+    );
+  }
+
+  // Stacked bar for final section
+  return (
+    <div className="absolute left-0 top-0 h-full rounded-[1.8rem] overflow-hidden flex" style={{ width: `${pct}%` }}>
+      <div className={`h-full ${isFirst ? 'bg-blue-400' : 'bg-blue-500'} opacity-25`}
+        style={{ width: gPct ? `${Math.round((gPct / pct) * 100)}%` : '0%' }} />
+      {hasK && (
+        <div className={`h-full ${isFirst ? 'bg-purple-400' : 'bg-purple-500'} opacity-25`}
+          style={{ width: `${Math.round((kPct / pct) * 100)}%` }} />
+      )}
+      {hasA && (
+        <div className={`h-full ${isFirst ? 'bg-amber-400' : 'bg-amber-500'} opacity-25`}
+          style={{ width: `${Math.round((aPct / pct) * 100)}%` }} />
+      )}
+    </div>
+  );
+}
+
 // ─── LEADERBOARD SECTION ──────────────────────────────────────────────────────
 // scoreField: which column to rank by for this section
 // cumulative: show group+knockout combined pts
@@ -1486,14 +1702,14 @@ function LeaderboardSection({
   showWinner?: boolean;
   winnerLabel?: string;
 }) {
-  const [list, setList] = useState<any[]>([]);
+  const [list, setList]       = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [prev, setPrev] = useState<string[]>([]);
+  const [prev, setPrev]       = useState<string[]>([]);
 
   useEffect(() => {
     supabase
       .from('submissions')
-      .select('id, bracket_name, points, group_points, knockout_points, awards_points, created_at')
+      .select('id, bracket_name, points, group_points, knockout_points, awards_points, created_at, updated_at')
       .order('points', { ascending: false })
       .then(({ data }) => {
         if (!data) { setLoading(false); return; }
@@ -1502,7 +1718,6 @@ function LeaderboardSection({
         setPrev(saved);
         localStorage.setItem(storageKey, JSON.stringify(data.map((u: any) => u.id)));
 
-        // Sort by the section-relevant field
         const sorted = [...data].sort((a, b) => {
           const aScore = cumulative
             ? ((a.group_points ?? 0) + (a.knockout_points ?? 0))
@@ -1530,80 +1745,127 @@ function LeaderboardSection({
   );
 
   const getDisplayPts = (u: any) => {
-    if (isFinal) return u.points ?? 0;
+    if (isFinal)    return u.points ?? 0;
     if (cumulative) return (u.group_points ?? 0) + (u.knockout_points ?? 0);
     return u[scoreField] ?? 0;
   };
 
-  const maxPts = Math.max(...list.map(u => getDisplayPts(u)), 1);
-  const medals = ['🥇', '🥈', '🥉'];
+  const allScores = list.map(getDisplayPts);
+  const maxPts    = Math.max(...allScores, 1);
+  const medals    = ['🥇', '🥈', '🥉'];
+  const topEntry  = list[0];
+  const topPts    = topEntry ? getDisplayPts(topEntry) : 0;
 
-  const topEntry = list[0];
-  const topPts = topEntry ? getDisplayPts(topEntry) : 0;
+  // Color palette per stage
+  const stageColor  = isFinal ? '#f59e0b' : cumulative ? '#8b5cf6' : '#3b82f6';
+  const maxBinPts   = isFinal ? 267 : cumulative ? 252 : 72;
 
   return (
     <div className="space-y-3">
+
+      {/* ── Winner Banner ── */}
       {showWinner && topEntry && topPts > 0 && (
-        <div className="flex items-center gap-3 bg-gradient-to-r from-slate-950 to-slate-800 rounded-[1.5rem] px-5 py-4 mb-4 shadow-lg">
+        <div
+          className="flex items-center gap-3 rounded-[1.5rem] px-5 py-4 mb-2 shadow-lg"
+          style={{ background: `linear-gradient(135deg, ${stageColor}dd, ${stageColor}99)` }}
+        >
           <div className="text-2xl">🥇</div>
           <div className="flex-1 min-w-0">
-            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{winnerLabel}</p>
+            <p className="text-[9px] font-black text-white/70 uppercase tracking-widest">{winnerLabel}</p>
             <p className="font-black text-white text-base truncate">{topEntry.bracket_name}</p>
           </div>
           <div className="text-right flex-shrink-0">
-            <p className="font-black text-2xl text-amber-400">{topPts}</p>
-            <p className="text-[9px] text-slate-500 uppercase font-bold">pts</p>
+            <p className="font-black text-2xl text-white">{topPts}</p>
+            <p className="text-[9px] text-white/60 uppercase font-bold">pts</p>
           </div>
         </div>
       )}
+
+      {/* ── Gap Analysis ── */}
+      {topPts > 0 && (
+        <GapAnalysisPanel list={list} getScore={getDisplayPts} />
+      )}
+
+      {/* ── Distribution Chart ── */}
+      {topPts > 0 && (
+        <PointsDistributionChart
+          list={allScores}
+          maxBin={maxBinPts}
+          color={stageColor}
+        />
+      )}
+
+      {/* ── Ranked List ── */}
       {list.map((u, i) => {
-        const pts = getDisplayPts(u);
-        const prevRank = prev.indexOf(u.id);
-        const moved = prevRank !== -1 ? prevRank - i : 0;
-        const pct = Math.round((pts / maxPts) * 100);
-        const isFirst = i === 0;
+        const pts       = getDisplayPts(u);
+        const prevRank  = prev.indexOf(u.id);
+        const moved     = prevRank !== -1 ? prevRank - i : 0;
+        const pct       = Math.round((pts / maxPts) * 100);
+        const isFirst   = i === 0;
+        const gPts      = u.group_points    ?? 0;
+        const kPts      = u.knockout_points ?? 0;
+        const aPts      = u.awards_points   ?? 0;
 
         return (
           <div
             key={u.id ?? i}
-            className={`relative overflow-hidden rounded-[1.8rem] border-2 transition-all ${isFirst ? 'bg-slate-950 border-slate-800' : 'bg-slate-50 border-slate-200'}`}
+            className={`relative overflow-hidden rounded-[1.8rem] border-2 transition-all
+              ${isFirst ? 'bg-slate-950 border-slate-800' : 'bg-slate-50 border-slate-200'}`}
           >
-            <div
-              className={`absolute left-0 top-0 h-full rounded-[1.8rem] transition-all opacity-10 ${isFirst ? 'bg-blue-400' : 'bg-blue-600'}`}
-              style={{ width: `${pct}%` }}
+            {/* Background bar — stacked for final, plain for others */}
+            <StackedScoreBar
+              groupPts={gPts} knockoutPts={kPts} awardsPts={aPts}
+              maxPts={maxPts} isFirst={isFirst} isFinal={isFinal}
             />
+
             <div className="relative z-10 flex justify-between items-center p-5">
               <div className="flex items-center gap-4">
                 <span className={`font-mono font-black text-xl w-8 text-center ${isFirst ? 'text-blue-400' : 'text-slate-300'}`}>
                   {i < 3 ? medals[i] : `#${i + 1}`}
                 </span>
                 <div>
-                  <p className={`font-black text-base ${isFirst ? 'text-white' : 'text-slate-800'}`}>{u.bracket_name}</p>
-                  <div className="flex items-center gap-2 mt-0.5">
-                    <p className={`text-[10px] ${isFirst ? 'text-slate-500' : 'text-slate-400'}`}>
-                      {new Date(u.created_at).toLocaleDateString()}
-                    </p>
-                    {isFinal && (
-                      <div className="flex items-center gap-1">
+                  <p className={`font-black text-base ${isFirst ? 'text-white' : 'text-slate-800'}`}>
+                    {u.bracket_name}
+                  </p>
+                  <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                    {/* G / K / A breakdown pills — always shown in final, only G shown elsewhere */}
+                    {isFinal ? (
+                      <>
                         {[
-                          { label: 'G', val: u.group_points ?? 0, color: 'bg-blue-100 text-blue-700' },
-                          { label: 'K', val: u.knockout_points ?? 0, color: 'bg-purple-100 text-purple-700' },
-                          { label: 'A', val: u.awards_points ?? 0, color: 'bg-amber-100 text-amber-700' },
-                        ].map(({ label, val, color }) => (
-                          <span key={label} className={`text-[8px] font-black px-1.5 py-0.5 rounded-md ${color}`}>
-                            {label}:{val}
+                          { label: 'G', val: gPts, color: 'bg-blue-100 text-blue-700',   ring: 'border-blue-200'   },
+                          { label: 'K', val: kPts, color: 'bg-purple-100 text-purple-700', ring: 'border-purple-200' },
+                          { label: 'A', val: aPts, color: 'bg-amber-100 text-amber-700',  ring: 'border-amber-200'  },
+                        ].map(({ label: lb, val, color, ring }) => (
+                          <span key={lb} className={`text-[8px] font-black px-1.5 py-0.5 rounded-md border ${color} ${ring}`}>
+                            {lb}:{val}
                           </span>
                         ))}
-                      </div>
+                      </>
+                    ) : (
+                      <span className={`text-[9px] font-black ${isFirst ? 'text-blue-400' : 'text-slate-400'}`}>
+                        {gPts} group pts
+                      </span>
                     )}
                   </div>
                 </div>
               </div>
+
               <div className="flex items-center gap-3">
-                {moved > 0 && <span className="text-emerald-500 text-xs font-black flex items-center"><ChevronUp size={14} />+{moved}</span>}
-                {moved < 0 && <span className="text-red-400 text-xs font-black flex items-center"><ChevronDown size={14} />{moved}</span>}
+                {moved > 0 && (
+                  <span className="text-emerald-500 text-xs font-black flex items-center gap-0.5">
+                    <ChevronUp size={14} />+{moved}
+                  </span>
+                )}
+                {moved < 0 && (
+                  <span className="text-red-400 text-xs font-black flex items-center gap-0.5">
+                    <ChevronDown size={14} />{moved}
+                  </span>
+                )}
                 <div className="text-right">
-                  <p className={`font-black text-2xl ${isFirst ? 'text-white' : 'text-blue-600'}`}>{pts}</p>
+                  <p className={`font-black text-2xl ${isFirst ? 'text-white' : ''}`}
+                    style={!isFirst ? { color: stageColor } : {}}>
+                    {pts}
+                  </p>
                   <p className={`text-[9px] uppercase font-bold ${isFirst ? 'text-slate-500' : 'text-slate-400'}`}>pts</p>
                 </div>
               </div>
@@ -1882,581 +2144,6 @@ function BumpChart({ snapshots }: { snapshots: Array<{ id: string; created_at: s
   );
 }
 
-// ─── NAME NORMALISER ─────────────────────────────────────────────────────────
-const PLAYER_ALIASES: Record<string, string> = {
-  'kylian mbappe':              'Kylian Mbappé',
-  'kylian mbappa':              'Kylian Mbappé',
-  'kylian mbappé':              'Kylian Mbappé',
-  'emiliano martinez':          'Emiliano Martínez',
-  'emiliano martínez':          'Emiliano Martínez',
-  'courtious':                  'Thibaut Courtois',
-  'courtois':                   'Thibaut Courtois',
-  'unai simon':                 'Unai Simón',
-  'unai simón':                 'Unai Simón',
-  'julian alverez':             'Julián Álvarez',
-  'julian alvarez':             'Julián Álvarez',
-  'julián alvarez':             'Julián Álvarez',
-  'julián álvarez':             'Julián Álvarez',
-  'julián álvarez (argentina)': 'Julián Álvarez',
-  'julian alvarez (argentina)': 'Julián Álvarez',
-  'bruno fernades':             'Bruno Fernandes',
-  'bruno fernandes':            'Bruno Fernandes',
-  'lamine yamal (spain)':       'Lamine Yamal',
-  'mike maignan (france)':      'Mike Maignan',
-  'pickford':                   'Jordan Pickford',
-  'vinicius junior':            'Vinícius Júnior',
-  'vinícius júnior':            'Vinícius Júnior',
-  'cody gakpo':                 'Cody Gakpo',
-  'harry kane':                 'Harry Kane',
-  'lionel messi':               'Lionel Messi',
-  'lamine yamal':               'Lamine Yamal',
-  'erling haaland':             'Erling Haaland',
-  'diogo costa':                'Diogo Costa',
-  'mike maignan':               'Mike Maignan',
-  'alisson becker':             'Alisson Becker',
-  'bart verbruggen':            'Bart Verbruggen',
-  'julian alvarez':             'Julián Álvarez',
-};
-function normalizeName(raw: string): string {
-  if (!raw) return '';
-  return PLAYER_ALIASES[raw.trim().toLowerCase()] ?? raw.trim();
-}
-
-type AwardPick = {
-  bracketName:   string;
-  golden_boot:   string;
-  golden_ball:   string;
-  golden_gloves: string;
-};
-
-// ─── PERSONAL MOMENTUM CARD ───────────────────────────────────────────────────
-function PersonalMomentumCard({
-  bracketName, snapshots,
-}: {
-  bracketName: string;
-  snapshots: Array<{ id: string; created_at: string; label: string; scores: Record<string, number> }>;
-}) {
-  if (snapshots.length === 0) return null;
-  const latest   = snapshots[snapshots.length - 1];
-  const prev     = snapshots.length >= 2 ? snapshots[snapshots.length - 2] : null;
-  const myLatest = latest.scores[bracketName] ?? 0;
-  const myPrev   = prev ? (prev.scores[bracketName] ?? 0) : null;
-  const delta    = myPrev !== null ? myLatest - myPrev : null;
-  const sorted   = Object.entries(latest.scores).sort((a, b) => b[1] - a[1]);
-  const myRank   = sorted.findIndex(([n]) => n === bracketName) + 1;
-  const total    = sorted.length;
-  const isGaining  = delta !== null && delta > 0;
-  const isDropping = delta !== null && delta < 0;
-  const percentile = total > 1 ? Math.round(((total - myRank) / (total - 1)) * 100) : 100;
-  const barWidth   = Math.round((myLatest / 72) * 100);
-  const getMessage = () => {
-    if (delta === null) return { text: `You're ranked #${myRank} of ${total}. More snapshots coming!`, color: 'text-slate-400' };
-    if (delta >= 6)  return { text: `🔥 On fire! +${delta} pts since the last snapshot.`, color: 'text-amber-400' };
-    if (delta >= 2)  return { text: `📈 Moving up — +${delta} pts since ${prev?.label}.`, color: 'text-emerald-400' };
-    if (delta === 0) return { text: `Holding steady at #${myRank}. Next round could shake things up.`, color: 'text-slate-400' };
-    if (delta <= -4) return { text: `Others pulled ahead. Down ${Math.abs(delta)} pts since ${prev?.label}.`, color: 'text-red-400' };
-    return { text: `Down ${Math.abs(delta)} pts since ${prev?.label}. Still plenty to play for!`, color: 'text-orange-400' };
-  };
-  const { text: msg, color: msgColor } = getMessage();
-  return (
-    <div className="relative overflow-hidden bg-slate-950 border border-white/10 rounded-[2rem] p-6 shadow-2xl">
-      {isGaining && (
-        <div className="absolute inset-0 rounded-[2rem] pointer-events-none"
-          style={{ background: 'radial-gradient(ellipse at 50% 0%,rgba(16,185,129,0.08) 0%,transparent 70%)' }} />
-      )}
-      <div className="flex items-start justify-between gap-4 mb-5">
-        <div>
-          <span className="inline-flex items-center gap-1.5 bg-blue-500/20 border border-blue-500/30 text-blue-400 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest mb-2">
-            <Zap size={10} /> Your Momentum
-          </span>
-          <h3 className="text-white text-xl font-black italic tracking-tight truncate max-w-xs">{bracketName}</h3>
-          <p className={`text-xs font-bold mt-0.5 ${msgColor}`}>{msg}</p>
-        </div>
-        <div className="flex-shrink-0 bg-white/5 border border-white/10 rounded-2xl px-5 py-3 text-center">
-          <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Rank</p>
-          <p className="text-3xl font-black text-white leading-none mt-1">#{myRank}</p>
-          <p className="text-[9px] text-slate-500 font-bold mt-0.5">of {total}</p>
-        </div>
-      </div>
-      <div className="grid grid-cols-3 gap-3 mb-5">
-        <div className="bg-white/5 rounded-2xl p-4 text-center">
-          <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1">Live Pts</p>
-          <p className="text-2xl font-black text-blue-400">{myLatest}</p>
-          <p className="text-[9px] text-slate-600 font-bold">/ 72</p>
-        </div>
-        <div className="bg-white/5 rounded-2xl p-4 text-center">
-          <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1">Since Last</p>
-          {delta === null ? <p className="text-2xl font-black text-slate-600">—</p> : (
-            <p className={`text-2xl font-black flex items-center justify-center gap-0.5 ${isGaining ? 'text-emerald-400' : isDropping ? 'text-red-400' : 'text-slate-500'}`}>
-              {isGaining && <TrendingUp size={16} />}{isDropping && <TrendingDown size={16} />}
-              {delta > 0 ? `+${delta}` : delta}
-            </p>
-          )}
-          <p className="text-[9px] text-slate-600 font-bold">pts</p>
-        </div>
-        <div className="bg-white/5 rounded-2xl p-4 text-center">
-          <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1">Top</p>
-          <p className={`text-2xl font-black ${percentile >= 75 ? 'text-amber-400' : percentile >= 50 ? 'text-blue-400' : 'text-slate-400'}`}>{percentile}%</p>
-          <p className="text-[9px] text-slate-600 font-bold">of players</p>
-        </div>
-      </div>
-      <div>
-        <div className="flex justify-between items-center mb-1.5">
-          <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Group Stage Progress</p>
-          <p className="text-[9px] font-black text-slate-400">{myLatest} / 72 pts</p>
-        </div>
-        <div className="h-2 bg-white/5 rounded-full overflow-hidden">
-          <div className="h-full rounded-full transition-all duration-700" style={{
-            width: `${barWidth}%`,
-            background: barWidth >= 70 ? 'linear-gradient(90deg,#10b981,#34d399)' :
-                        barWidth >= 40 ? 'linear-gradient(90deg,#3b82f6,#60a5fa)' :
-                                        'linear-gradient(90deg,#64748b,#94a3b8)',
-          }} />
-        </div>
-        <div className="flex justify-between mt-1">
-          <p className="text-[9px] text-slate-600 font-bold">0</p>
-          <p className="text-[9px] text-slate-600 font-bold">72 max</p>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ─── CLOSEST RIVAL CARD ───────────────────────────────────────────────────────
-function ClosestRivalCard({ bracketName, snapshots }: {
-  bracketName: string;
-  snapshots: Array<{ id: string; created_at: string; label: string; scores: Record<string, number> }>;
-}) {
-  if (snapshots.length === 0) return null;
-  const latest = snapshots[snapshots.length - 1];
-  const myPts  = latest.scores[bracketName] ?? 0;
-  const sorted = Object.entries(latest.scores)
-    .filter(([n]) => n !== bracketName)
-    .sort((a, b) => Math.abs(a[1] - myPts) - Math.abs(b[1] - myPts));
-  if (sorted.length === 0) return null;
-  const [rivalName, rivalPts] = sorted[0];
-  const diff  = rivalPts - myPts;
-  const ahead = diff > 0;
-  const tied  = diff === 0;
-  return (
-    <div className="bg-white border-2 border-slate-200 rounded-[2rem] p-6 shadow-sm flex flex-col">
-      <div className="flex items-center gap-2 mb-4">
-        <div className="bg-rose-100 p-2 rounded-xl"><Swords size={14} className="text-rose-600" /></div>
-        <div>
-          <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Closest Rival</p>
-          <p className="text-xs font-black text-slate-600">Battle to watch 👀</p>
-        </div>
-      </div>
-      <div className="flex items-center justify-between gap-4 flex-1">
-        <div className="flex-1 text-center">
-          <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">You</p>
-          <p className="font-black text-slate-800 text-sm truncate">{bracketName.split(' ')[0]}</p>
-          <p className="text-2xl font-black text-blue-600 mt-1">{myPts}</p>
-          <p className="text-[9px] text-slate-400 font-bold">pts</p>
-        </div>
-        <div className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center text-[10px] font-black
-          ${tied ? 'bg-slate-200 text-slate-600' : !ahead ? 'bg-blue-600 text-white' : 'bg-rose-100 text-rose-600'}`}>
-          {tied ? '=' : !ahead ? '▲' : '▼'}
-        </div>
-        <div className="flex-1 text-center">
-          <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Rival</p>
-          <p className="font-black text-slate-800 text-sm truncate">{rivalName.split(' ')[0]}</p>
-          <p className={`text-2xl font-black mt-1 ${ahead ? 'text-rose-500' : 'text-slate-400'}`}>{rivalPts}</p>
-          <p className="text-[9px] text-slate-400 font-bold">pts</p>
-        </div>
-      </div>
-      <div className={`mt-4 text-center text-xs font-black rounded-xl py-2 px-4
-        ${tied ? 'bg-slate-100 text-slate-600' : !ahead ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'}`}>
-        {tied   ? `Dead heat with ${rivalName.split(' ')[0]}! Next correct pick wins it.`
-        : !ahead ? `You're ${Math.abs(diff)} pts ahead — ${rivalName.split(' ')[0]} is chasing.`
-                 : `${rivalName.split(' ')[0]} leads by ${Math.abs(diff)} pts — one right call closes it.`}
-      </div>
-    </div>
-  );
-}
-
-// ─── BIGGEST MOVER CARD ───────────────────────────────────────────────────────
-function BiggestMoverCard({ snapshots }: {
-  snapshots: Array<{ id: string; created_at: string; label: string; scores: Record<string, number> }>;
-}) {
-  if (snapshots.length < 2) return null;
-  const latest = snapshots[snapshots.length - 1];
-  const prev   = snapshots[snapshots.length - 2];
-  const deltas = Object.entries(latest.scores).map(([name, pts]) => ({
-    name, delta: pts - (prev.scores[name] ?? 0), pts,
-  }));
-  const topGainer  = [...deltas].sort((a, b) => b.delta - a.delta)[0];
-  const topDropper = [...deltas].sort((a, b) => a.delta - b.delta)[0];
-  if (!topGainer || topGainer.delta === 0) return null;
-  return (
-    <div className="bg-white border-2 border-slate-200 rounded-[2rem] p-6 shadow-sm flex flex-col">
-      <div className="flex items-center gap-2 mb-4">
-        <div className="bg-amber-100 p-2 rounded-xl"><Flame size={14} className="text-amber-600" /></div>
-        <div>
-          <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Today's Movers</p>
-          <p className="text-xs font-black text-slate-600">{prev.label} → {latest.label}</p>
-        </div>
-      </div>
-      <div className="space-y-3 flex-1">
-        <div className="flex items-center justify-between bg-emerald-50 border border-emerald-200 rounded-2xl px-4 py-3">
-          <div className="flex items-center gap-3">
-            <div className="bg-emerald-500 text-white w-7 h-7 rounded-xl flex items-center justify-center flex-shrink-0"><TrendingUp size={13} /></div>
-            <div>
-              <p className="text-[9px] font-black text-emerald-600 uppercase tracking-widest">Biggest Jump</p>
-              <p className="font-black text-slate-800 text-sm">{topGainer.name}</p>
-            </div>
-          </div>
-          <div className="text-right">
-            <p className="text-xl font-black text-emerald-600">+{topGainer.delta}</p>
-            <p className="text-[9px] text-slate-400 font-bold">{topGainer.pts} total</p>
-          </div>
-        </div>
-        {topDropper.delta < 0 && topDropper.name !== topGainer.name && (
-          <div className="flex items-center justify-between bg-rose-50 border border-rose-100 rounded-2xl px-4 py-3">
-            <div className="flex items-center gap-3">
-              <div className="bg-rose-400 text-white w-7 h-7 rounded-xl flex items-center justify-center flex-shrink-0"><TrendingDown size={13} /></div>
-              <div>
-                <p className="text-[9px] font-black text-rose-500 uppercase tracking-widest">Fell Behind</p>
-                <p className="font-black text-slate-800 text-sm">{topDropper.name}</p>
-              </div>
-            </div>
-            <div className="text-right">
-              <p className="text-xl font-black text-rose-500">{topDropper.delta}</p>
-              <p className="text-[9px] text-slate-400 font-bold">{topDropper.pts} total</p>
-            </div>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-// ─── GOLDEN AWARD CARD ────────────────────────────────────────────────────────
-// Full transparency — every participant's pick is visible to everyone.
-// Shows: current leader, who picked them (ALL names, no truncation),
-// and a full expandable breakdown of every player picked and who chose them.
-function GoldenAwardCard({
-  emoji, title, leader, subLabel, allPicks, pickKey, locked,
-}: {
-  emoji: string; title: string; leader: string; subLabel: string;
-  allPicks: AwardPick[]; pickKey: keyof Omit<AwardPick, 'bracketName'>; locked?: boolean;
-}) {
-  const [expanded, setExpanded] = useState(false);
-  const normalizedLeader = normalizeName(leader);
-
-  // Group all picks by normalised player name
-  const picksByPlayer: Record<string, string[]> = {};
-  allPicks.forEach(p => {
-    const raw = p[pickKey] as string;
-    const n   = normalizeName(raw);
-    if (!n) return;
-    if (!picksByPlayer[n]) picksByPlayer[n] = [];
-    picksByPlayer[n].push(p.bracketName);
-  });
-
-  // Sort by most picked → fewest
-  const ranked = Object.entries(picksByPlayer).sort((a, b) => b[1].length - a[1].length);
-  const total  = allPicks.filter(p => (p[pickKey] as string)).length;
-
-  // Who currently wins (picked the leader)
-  const correctPickers = normalizedLeader ? (picksByPlayer[normalizedLeader] || []) : [];
-
-  return (
-    <div className="bg-white border-2 border-slate-200 rounded-[2rem] overflow-hidden shadow-sm flex flex-col">
-      {/* Card body */}
-      <div className="p-6 flex flex-col gap-4">
-
-        {/* Header */}
-        <div className="flex items-start justify-between gap-2">
-          <div>
-            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">{title}</p>
-            <div className="flex items-center gap-2">
-              <span className="text-2xl">{emoji}</span>
-              <div>
-                <p className="font-black text-slate-900 text-base leading-tight">
-                  {locked ? '???' : (normalizedLeader || '—')}
-                </p>
-                <p className="text-[10px] text-slate-400 font-bold">
-                  {locked ? 'Awarded at finale' : subLabel}
-                </p>
-              </div>
-            </div>
-          </div>
-          {locked && (
-            <div className="bg-slate-100 border border-slate-200 rounded-xl px-2.5 py-1 flex items-center gap-1 flex-shrink-0">
-              <Lock size={10} className="text-slate-400" />
-              <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Locked</span>
-            </div>
-          )}
-        </div>
-
-        {/* Who wins if leader holds — ALL names, no truncation */}
-        {!locked && normalizedLeader && (
-          <div>
-            <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2">
-              {correctPickers.length > 0
-                ? `✅ ${correctPickers.length} colleague${correctPickers.length !== 1 ? 's' : ''} win if ${normalizedLeader} holds`
-                : '😬 Nobody picked this — surprise winner incoming!'}
-            </p>
-            {correctPickers.length > 0 && (
-              <div className="flex flex-wrap gap-1.5">
-                {correctPickers.map(name => (
-                  <span key={name} className="bg-emerald-50 border border-emerald-200 text-emerald-700 text-[9px] font-black px-2.5 py-1 rounded-lg">
-                    {name}
-                  </span>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Divider */}
-        <div className="border-t border-slate-100" />
-
-        {/* Top bar chart summary */}
-        <div>
-          <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">
-            Pick distribution · {total} responses
-          </p>
-          <div className="space-y-2">
-            {ranked.slice(0, 3).map(([name, pickers], idx) => {
-              const isLeading = name === normalizedLeader && !locked;
-              const pct       = Math.round((pickers.length / total) * 100);
-              return (
-                <div key={name}>
-                  <div className="flex items-center justify-between mb-0.5">
-                    <span className={`text-[10px] font-black truncate max-w-[160px] flex items-center gap-1 ${isLeading ? 'text-emerald-700' : 'text-slate-700'}`}>
-                      {isLeading && <span className="text-[8px]">🔥</span>}{name}
-                    </span>
-                    <span className="text-[9px] font-black text-slate-400 tabular-nums">{pickers.length}/{total}</span>
-                  </div>
-                  <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                    <div className="h-full rounded-full transition-all duration-700" style={{
-                      width: `${pct}%`,
-                      background: isLeading
-                        ? 'linear-gradient(90deg,#10b981,#34d399)'
-                        : idx === 0 ? 'linear-gradient(90deg,#3b82f6,#60a5fa)' : '#e2e8f0',
-                    }} />
-                  </div>
-                </div>
-              );
-            })}
-            {ranked.length > 3 && !expanded && (
-              <p className="text-[9px] text-slate-400 font-bold">+{ranked.length - 3} more players picked below</p>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* Expand / collapse toggle */}
-      <button
-        onClick={() => setExpanded(e => !e)}
-        className="flex items-center justify-between w-full px-6 py-3 bg-slate-50 hover:bg-slate-100 border-t border-slate-100 transition text-left"
-      >
-        <span className="text-[10px] font-black text-slate-600 uppercase tracking-widest">
-          {expanded ? 'Hide full breakdown' : `Show all ${total} picks — who chose what`}
-        </span>
-        <ChevronRight size={14} className={`text-slate-400 transition-transform duration-200 ${expanded ? 'rotate-90' : ''}`} />
-      </button>
-
-      {/* Full breakdown — every player, every picker, fully visible */}
-      {expanded && (
-        <div className="px-6 pb-6 pt-2 space-y-4 border-t border-slate-100 bg-slate-50">
-          {ranked.map(([playerName, pickers]) => {
-            const isLeading = playerName === normalizedLeader && !locked;
-            return (
-              <div key={playerName} className={`rounded-2xl border-2 overflow-hidden ${isLeading ? 'border-emerald-300 bg-white' : 'border-slate-200 bg-white'}`}>
-                {/* Player header row */}
-                <div className={`flex items-center justify-between px-4 py-3 ${isLeading ? 'bg-emerald-50' : 'bg-slate-50'}`}>
-                  <div className="flex items-center gap-2">
-                    {isLeading && <span className="text-sm">🔥</span>}
-                    <span className={`font-black text-sm ${isLeading ? 'text-emerald-800' : 'text-slate-800'}`}>
-                      {playerName}
-                    </span>
-                    {isLeading && (
-                      <span className="bg-emerald-500 text-white text-[8px] font-black px-2 py-0.5 rounded-full uppercase tracking-widest">
-                        Current Leader
-                      </span>
-                    )}
-                  </div>
-                  <span className={`text-[10px] font-black px-2.5 py-1 rounded-lg ${isLeading ? 'bg-emerald-200 text-emerald-800' : 'bg-slate-200 text-slate-600'}`}>
-                    {pickers.length} pick{pickers.length !== 1 ? 's' : ''}
-                  </span>
-                </div>
-                {/* All pickers — every name, no limit */}
-                <div className="px-4 py-3 flex flex-wrap gap-1.5">
-                  {pickers.map(name => (
-                    <span
-                      key={name}
-                      className={`text-[10px] font-black px-2.5 py-1 rounded-lg border ${
-                        isLeading
-                          ? 'bg-emerald-50 border-emerald-200 text-emerald-700'
-                          : 'bg-slate-50 border-slate-200 text-slate-600'
-                      }`}
-                    >
-                      {name}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            );
-          })}
-          {/* Participants who didn't fill this award */}
-          {(() => {
-            const didntPick = allPicks
-              .filter(p => !normalizeName(p[pickKey] as string))
-              .map(p => p.bracketName);
-            if (didntPick.length === 0) return null;
-            return (
-              <div className="rounded-2xl border-2 border-slate-100 bg-white overflow-hidden">
-                <div className="flex items-center justify-between px-4 py-3 bg-slate-50">
-                  <span className="font-black text-sm text-slate-400 italic">No pick entered</span>
-                  <span className="text-[10px] font-black px-2.5 py-1 rounded-lg bg-slate-200 text-slate-500">{didntPick.length}</span>
-                </div>
-                <div className="px-4 py-3 flex flex-wrap gap-1.5">
-                  {didntPick.map(name => (
-                    <span key={name} className="text-[10px] font-black px-2.5 py-1 rounded-lg border border-slate-100 bg-slate-50 text-slate-400">{name}</span>
-                  ))}
-                </div>
-              </div>
-            );
-          })()}
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ─── GOLDEN AWARDS RACE ───────────────────────────────────────────────────────
-function GoldenAwardsRace({ bracketName }: { bracketName: string }) {
-  const [allPicks, setAllPicks] = useState<AwardPick[]>([]);
-  const [leaders, setLeaders]   = useState({ boot: '', bootGoals: 0, ball: '', gloves: '' });
-  const [loading, setLoading]   = useState(true);
-
-  useEffect(() => {
-    const load = async () => {
-      setLoading(true);
-      const { data: subs } = await supabase
-        .from('submissions')
-        .select('bracket_name, golden_boot, golden_ball, golden_gloves');
-      setAllPicks((subs || []).map(s => ({
-        bracketName:   s.bracket_name  || '',
-        golden_boot:   s.golden_boot   || '',
-        golden_ball:   s.golden_ball   || '',
-        golden_gloves: s.golden_gloves || '',
-      })));
-      const { data: off } = await supabase
-        .from('official_results')
-        .select('golden_boot, golden_ball, golden_gloves, boot_goals')
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      setLeaders({
-        boot:      off?.golden_boot || '',
-        bootGoals: off?.boot_goals  || 0,
-        ball:      off?.golden_ball || '',
-        gloves:    off?.golden_gloves || '',
-      });
-      setLoading(false);
-    };
-    load();
-  }, []);
-
-  const me            = allPicks.find(p => p.bracketName === bracketName);
-  const myBoot        = normalizeName(me?.golden_boot   || '');
-  const myBall        = normalizeName(me?.golden_ball   || '');
-  const myGloves      = normalizeName(me?.golden_gloves || '');
-  const myBootMatch   = !!leaders.boot   && myBoot   === normalizeName(leaders.boot);
-  const myBallMatch   = !!leaders.ball   && myBall   === normalizeName(leaders.ball);
-  const myGlovesMatch = !!leaders.gloves && myGloves === normalizeName(leaders.gloves);
-  const myMatchCount  = [myBootMatch, myBallMatch, myGlovesMatch].filter(Boolean).length;
-
-  if (loading) return (
-    <div className="flex items-center justify-center py-12 gap-2 text-slate-400">
-      <RefreshCw size={14} className="animate-spin" />
-      <span className="text-xs font-bold">Loading awards...</span>
-    </div>
-  );
-
-  return (
-    <div className="space-y-5">
-      <div>
-        <span className="inline-flex items-center gap-1.5 bg-amber-500/20 border border-amber-500/30 text-amber-600 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest mb-2">
-          <Star size={10} /> Golden Awards Race
-        </span>
-        <h3 className="text-slate-900 text-xl font-black italic tracking-tight">Who's winning the awards?</h3>
-        <p className="text-slate-400 text-xs mt-0.5">
-          Boot updates after each matchday · Tap any card to see the full pick breakdown
-        </p>
-      </div>
-
-      {/* Personal status banner */}
-      {(leaders.boot || leaders.ball || leaders.gloves) && (
-        <div className={`rounded-2xl px-5 py-4 border-2 flex items-center gap-4 ${
-          myMatchCount === 3 ? 'bg-emerald-50 border-emerald-300' :
-          myMatchCount >= 1 ? 'bg-blue-50 border-blue-200' :
-                              'bg-slate-50 border-slate-200'
-        }`}>
-          <span className="text-2xl flex-shrink-0">
-            {myMatchCount === 3 ? '🏆' : myMatchCount >= 1 ? '⚡' : '😬'}
-          </span>
-          <div>
-            <p className={`font-black text-sm ${myMatchCount >= 1 ? 'text-slate-800' : 'text-slate-500'}`}>
-              {myMatchCount === 3 ? 'You called all 3 awards correctly so far — incredible!' :
-               myMatchCount === 2 ? 'You\'re on track for 2 of 3 awards (+10 bonus pts)' :
-               myMatchCount === 1 ? 'You\'ve got 1 award correct so far (+5 bonus pts if it holds)' :
-               'None of your award picks are leading yet — tournament has a long way to go!'}
-            </p>
-            <div className="flex gap-2 mt-1.5 flex-wrap">
-              {[
-                { label: '🏅 Ball',   match: myBallMatch,   pick: myBall   },
-                { label: '👟 Boot',   match: myBootMatch,   pick: myBoot   },
-                { label: '🧤 Gloves', match: myGlovesMatch, pick: myGloves },
-              ].map(({ label, match, pick }) => (
-                <span key={label} className={`text-[9px] font-black px-2 py-0.5 rounded-lg ${match ? 'bg-emerald-200 text-emerald-800' : 'bg-slate-200 text-slate-500'}`}>
-                  {label}: {pick || '—'} {match ? '✓' : ''}
-                </span>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {!leaders.boot && !leaders.ball && !leaders.gloves && (
-        <div className="bg-amber-50 border-2 border-amber-200 rounded-2xl px-5 py-4 text-sm text-amber-700 font-bold flex items-center gap-3">
-          <Info size={16} className="flex-shrink-0" />
-          Admin hasn't set the current award leaders yet. Check back after the next matchday.
-        </div>
-      )}
-
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-        <GoldenAwardCard
-          emoji="👟" title="Golden Boot"
-          leader={leaders.boot}
-          subLabel={leaders.bootGoals ? `${leaders.bootGoals} goal${leaders.bootGoals !== 1 ? 's' : ''} · Group Stage` : 'Group Stage'}
-          allPicks={allPicks} pickKey="golden_boot" locked={false}
-        />
-        <GoldenAwardCard
-          emoji="🧤" title="Golden Gloves"
-          leader={leaders.gloves}
-          subLabel="Best keeper · Group Stage"
-          allPicks={allPicks} pickKey="golden_gloves" locked={!leaders.gloves}
-        />
-        <GoldenAwardCard
-          emoji="🏅" title="Golden Ball (MVP)"
-          leader={leaders.ball}
-          subLabel="Tournament MVP"
-          allPicks={allPicks} pickKey="golden_ball" locked={!leaders.ball}
-        />
-      </div>
-
-      <p className="text-[10px] text-slate-400 font-bold text-center">
-        ⚡ Boot leader updated after each matchday · Gloves & Ball confirmed at finale · Each correct pick = +5 pts
-      </p>
-    </div>
-  );
-}
-
 // ─── LIVE GROUP TRACKER ───────────────────────────────────────────────────────
 // Reads the admin-maintained `live_standings` table (one row, jsonb `standings`
 // shaped exactly like prediction standings: { [groupId]: { 1: teamId, 2: teamId, 3: teamId } })
@@ -2695,20 +2382,6 @@ function LiveTracker({ bracketName, isAdmin, getTeam, toast }: {
         </div>
       )}
 
-      {/* ── Engagement Cards ── */}
-      {snapshots.length > 0 && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-          <PersonalMomentumCard bracketName={bracketName} snapshots={snapshots} />
-          <ClosestRivalCard     bracketName={bracketName} snapshots={snapshots} />
-          <BiggestMoverCard     snapshots={snapshots} />
-        </div>
-      )}
-
-      {/* ── Golden Awards Race ── */}
-      <div className="bg-white border-2 border-slate-200 rounded-[2rem] p-6 md:p-8 shadow-sm">
-        <GoldenAwardsRace bracketName={bracketName} />
-      </div>
-
       {/* ── Bump Chart (visible to all) ── */}
       {snapshots.length > 0 && (
         <div className="bg-slate-950 rounded-[2rem] p-6 md:p-8 shadow-2xl">
@@ -2733,7 +2406,6 @@ function LiveTracker({ bracketName, isAdmin, getTeam, toast }: {
         </div>
       )}
 
-      {/* ── Group Cards ── */}
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-5">
         {Object.entries(GROUPS_DATA).map(([gid, g]: any) => {
           const groupLive = live[gid] || {};
