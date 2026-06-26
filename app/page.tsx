@@ -2203,22 +2203,23 @@ function LeaderboardSection({
             <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Score Distribution — {list.length} Players</p>
             <p className="text-[9px] font-bold text-slate-400 tabular-nums">0 – {maxStagePts} pts</p>
           </div>
-          <div className="flex items-end gap-1 h-12">
+          <div className="flex items-end gap-1" style={{ height: '64px' }}>
             {distBins.map((count, bi) => {
-              const hPct = Math.round((count / maxDistBin) * 100);
-              const lo   = Math.round((bi     / BIN_COUNT) * maxStagePts);
-              const hi   = Math.round(((bi+1) / BIN_COUNT) * maxStagePts);
+              const MAX_H = 64;
+              const hPx  = count > 0 ? Math.max(Math.round((count / maxDistBin) * MAX_H), 6) : 2;
+              const lo   = Math.round((bi      / BIN_COUNT) * maxStagePts);
+              const hi   = Math.round(((bi+1)  / BIN_COUNT) * maxStagePts);
               return (
-                <div key={bi} className="flex-1 flex flex-col items-center gap-0.5 group relative">
+                <div key={bi} className="flex-1 flex flex-col items-center group relative" style={{ height: `${MAX_H}px`, justifyContent: 'flex-end' }}>
                   <div
                     className="w-full rounded-t transition-all"
                     style={{
-                      height: `${Math.max(hPct, count > 0 ? 10 : 0)}%`,
+                      height: `${hPx}px`,
                       background: count > 0 ? accentBar : '#e2e8f0',
-                      opacity: count > 0 ? 0.8 : 0.3,
+                      opacity: count > 0 ? 0.85 : 0.25,
                     }}
                   />
-                  {/* tooltip */}
+                  {/* hover tooltip */}
                   {count > 0 && (
                     <div className="absolute bottom-full mb-1 left-1/2 -translate-x-1/2 hidden group-hover:block z-10 pointer-events-none">
                       <div className="bg-slate-900 text-white text-[8px] font-bold rounded-lg px-2 py-1 whitespace-nowrap shadow">
