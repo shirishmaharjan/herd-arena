@@ -530,6 +530,7 @@ export default function HerdArenaFinalMaster() {
   const [view, setView] = useState<'bracket' | 'leaderboard' | 'live'>('bracket');
   const [isAdmin, setIsAdmin] = useState(false);
   const [showAdminPanel, setShowAdminPanel] = useState(false);
+  const [adminLoaded, setAdminLoaded] = useState(false);
   const [bracketName, setBracketName] = useState('');
   const [standings, setStandings] = useState<Record<string, Record<number, string>>>({});
   const [bracketWinners, setBracketWinners] = useState<Record<string, any>>({});
@@ -553,6 +554,31 @@ export default function HerdArenaFinalMaster() {
     setStage2Locked(true);
     setStage3Locked(true);
   }, []);
+
+  // ── Auto-load official results into local state when admin logs in ──────────
+  // This means the Bracket tab shows current Supabase data immediately,
+  // so admin only needs to update the groups that changed — not re-enter everything.
+  useEffect(() => {
+    if (!isAdmin || adminLoaded) return;
+    const load = async () => {
+      const { data } = await supabase
+        .from('official_results')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (!data) return;
+      const bd = data.bracket_data || {};
+      if (bd.standings)      setStandings(bd.standings);
+      if (bd.bracketWinners) setBracketWinners(bd.bracketWinners);
+      if (bd.thirds?.length) setSelectedThirdsIds(bd.thirds);
+      if (data.golden_ball)   setAwards(p => ({ ...p, ball:   data.golden_ball }));
+      if (data.golden_boot)   setAwards(p => ({ ...p, boot:   data.golden_boot }));
+      if (data.golden_gloves) setAwards(p => ({ ...p, gloves: data.golden_gloves }));
+      setAdminLoaded(true);
+    };
+    load();
+  }, [isAdmin, adminLoaded]);
 
   // Countdown timer
   useEffect(() => {
