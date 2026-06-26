@@ -3133,33 +3133,6 @@ function GoldenAwardsRace({ bracketName }: { bracketName: string }) {
 // ─── LIVE KNOCKOUT VIEW ───────────────────────────────────────────────────────
 // Full live bracket experience: qualification summary, round-by-round match cards
 // showing both teams, the winner, user's pick, and points earned or missed.
-// ─── FIFA 2026 R32 FIXTURES ───────────────────────────────────────────────────
-// Official schedule for the Round of 32. matchId maps to BRACKET_MAPPING slots.
-// Teams shown as slot labels until groups finish; once admin saves standings they resolve.
-const FIFA_R32_FIXTURES = [
-  { matchId:'m1',  date:'2026-06-28', time:'18:00',label:'Match 1',  t1:'A1', t2:'3RD-BCDEF' },
-  { matchId:'m2',  date:'2026-06-28', time:'21:00',label:'Match 2',  t1:'C1', t2:'3RD-ABDEF' },
-  { matchId:'m3',  date:'2026-06-29', time:'18:00',label:'Match 3',  t1:'B1', t2:'3RD-ACDEF' },
-  { matchId:'m4',  date:'2026-06-29', time:'21:00',label:'Match 4',  t1:'D1', t2:'3RD-ABCEF' },
-  { matchId:'m5',  date:'2026-06-30', time:'18:00',label:'Match 5',  t1:'E1', t2:'3RD-ABCDF' },
-  { matchId:'m6',  date:'2026-06-30', time:'21:00',label:'Match 6',  t1:'F1', t2:'3RD-ABCDG' },
-  { matchId:'m7',  date:'2026-07-01', time:'18:00',label:'Match 7',  t1:'G1', t2:'3RD-ABCDE' },
-  { matchId:'m8',  date:'2026-07-01', time:'21:00',label:'Match 8',  t1:'H1', t2:'3RD-ABCFG' },
-  { matchId:'m9',  date:'2026-07-02', time:'18:00',label:'Match 9',  t1:'I1', t2:'3RD-ABCGH' },
-  { matchId:'m10', date:'2026-07-02', time:'21:00',label:'Match 10', t1:'J1', t2:'3RD-ABCHI' },
-  { matchId:'m11', date:'2026-07-03', time:'18:00',label:'Match 11', t1:'K1', t2:'3RD-ABCIJ' },
-  { matchId:'m12', date:'2026-07-03', time:'21:00',label:'Match 12', t1:'L1', t2:'3RD-ABCJK' },
-  { matchId:'m13', date:'2026-07-04', time:'18:00',label:'Match 13', t1:'A2', t2:'B2' },
-  { matchId:'m14', date:'2026-07-04', time:'21:00',label:'Match 14', t1:'C2', t2:'D2' },
-  { matchId:'m15', date:'2026-07-05', time:'18:00',label:'Match 15', t1:'E2', t2:'F2' },
-  { matchId:'m16', date:'2026-07-05', time:'21:00',label:'Match 16', t1:'G2', t2:'H2' },
-];
-
-function formatFixtureDate(dateStr: string, timeStr: string): string {
-  const d = new Date(`${dateStr}T${timeStr}:00Z`);
-  return d.toLocaleDateString('en-GB', { weekday:'short', day:'numeric', month:'short' }) + ' · ' + timeStr + ' UTC';
-}
-
 function LiveKnockoutView({ bracketName, getTeam }: { bracketName: string; getTeam: (id: string) => any }) {
   const [official, setOfficial] = useState<any>(null);
   const [mySub,    setMySub]    = useState<any>(null);
@@ -3426,166 +3399,115 @@ function LiveKnockoutView({ bracketName, getTeam }: { bracketName: string; getTe
             <p className="text-[10px] text-slate-400 font-bold mt-2">R32/R16/QF/SF = +5 pts each · 3rd Place = +10 · Final = +20</p>
           </div>
 
-          {/* ── R32 Fixtures schedule ── */}
-          <div className="bg-white border border-slate-100 rounded-[2rem] overflow-hidden shadow-sm">
-            <div className="flex items-center gap-3 px-6 py-5 border-b border-slate-100 bg-slate-50">
-              <div className="bg-slate-900 p-2 rounded-xl"><Swords size={14} className="text-white" /></div>
-              <div>
-                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Round of 32 — Full Schedule</p>
-                <p className="text-sm font-black text-slate-800">All 16 upcoming fixtures</p>
-              </div>
-            </div>
-            <div className="divide-y divide-slate-50">
-              {FIFA_R32_FIXTURES.map(fix => {
-                const winner = offBracket[fix.matchId];
-                const myPick = myBracket[fix.matchId];
-                const isPlayed = !!winner;
-                const correct  = isPlayed && myPick?.id === winner?.id;
-                const wrong    = isPlayed && myPick && myPick.id !== winner?.id;
-                const winnerT  = winner ? (getTeam(winner.id) || winner) : null;
-                const myT      = myPick  ? (getTeam(myPick.id) || myPick) : null;
+          {/* ── Fixtures: driven directly by BRACKET_MAPPING + official standings ── */}
+          {(() => {
+            // Use the same resolveTeam logic as the Bracket tab but reading from offStandings
+            const resolveOfficial = (slot: string): any => {
+              if (!slot) return { placeholder: 'TBD' };
+              if (slot.startsWith('W')) {
+                const w = offBracket['m' + slot.substring(1)];
+                return w ? getTeam(w.id) || w : { placeholder: `Winner M${slot.substring(1)}` };
+              }
+              if (slot.startsWith('3RD')) {
+                const idx = parseInt(slot.split('-')[1]) - 1;
+                const tId = offThirds[idx];
+                const t = tId ? getTeam(tId) : null;
+                return t ? { ...t, label: '3rd' } : { placeholder: `3rd Slot ${idx + 1}` };
+              }
+              const gId = slot[0]; const rank = parseInt(slot.substring(1));
+              const tId = offStandings[gId]?.[rank];
+              return tId ? getTeam(tId) : { placeholder: `${rank === 1 ? '1st' : rank === 2 ? '2nd' : '3rd'} Group ${gId}` };
+            };
 
-                // Resolve slot label to team name from official standings
-                const resolveSlot = (slot: string): string => {
-                  if (slot.startsWith('3RD')) return '3rd Place (TBD)';
-                  const gId = slot[0]; const rank = parseInt(slot[1]);
-                  const tid = offStandings[gId]?.[rank];
-                  if (!tid) return slot === slot ? `${rank === 1 ? '1st' : '2nd'} Group ${gId}` : slot;
-                  const t = getTeam(tid);
-                  return t?.n || tid;
-                };
+            const roundDefs = [
+              { key:'r32', label:'Round of 32',    pts:5,  ids:BRACKET_MAPPING.slice(0,16).map((m:any)=>m.id),  matches:BRACKET_MAPPING.slice(0,16)  },
+              { key:'r16', label:'Round of 16',    pts:5,  ids:BRACKET_MAPPING.slice(16,24).map((m:any)=>m.id), matches:BRACKET_MAPPING.slice(16,24) },
+              { key:'qf',  label:'Quarter-Finals', pts:5,  ids:BRACKET_MAPPING.slice(24,28).map((m:any)=>m.id), matches:BRACKET_MAPPING.slice(24,28) },
+              { key:'sf',  label:'Semi-Finals',    pts:5,  ids:BRACKET_MAPPING.slice(28,30).map((m:any)=>m.id), matches:BRACKET_MAPPING.slice(28,30) },
+              { key:'3p',  label:'3rd Place',      pts:10, ids:['m103'], matches:[BRACKET_MAPPING[30]] },
+              { key:'f',   label:'The Final 🏆',   pts:20, ids:['m104'], matches:[BRACKET_MAPPING[31]] },
+            ];
 
-                const now = new Date();
-                const matchTime = new Date(`${fix.date}T${fix.time}:00Z`);
-                const isUpcoming = !isPlayed && matchTime > now;
-                const isToday = matchTime.toDateString() === now.toDateString();
+            return roundDefs.map(round => {
+              const hasAnyResult = round.ids.some(mid => offBracket[mid]);
+              const isFinal = round.key === 'f';
+              const is3rd   = round.key === '3p';
 
-                return (
-                  <div key={fix.matchId} className={`flex items-center gap-4 px-5 py-3.5 hover:bg-slate-50 transition-colors ${isToday ? 'bg-amber-50/60' : ''}`}>
-                    {/* Date/time */}
-                    <div className="text-right flex-shrink-0 w-28">
-                      <p className={`text-[9px] font-black uppercase tracking-wide ${isToday ? 'text-amber-600' : 'text-slate-400'}`}>
-                        {isToday ? '🔴 TODAY' : new Date(`${fix.date}T12:00:00Z`).toLocaleDateString('en-GB', { weekday:'short', day:'numeric', month:'short' })}
-                      </p>
-                      <p className="text-[9px] text-slate-300 font-bold">{fix.time} UTC</p>
+              return (
+                <div key={round.key} className={`rounded-[2rem] border-2 overflow-hidden shadow-sm ${isFinal ? 'border-amber-300' : is3rd ? 'border-orange-200' : 'border-slate-200'}`}>
+                  {/* Round header */}
+                  <div className={`flex items-center justify-between px-5 py-3.5 border-b ${isFinal ? 'bg-amber-50 border-amber-200' : is3rd ? 'bg-orange-50 border-orange-200' : 'bg-slate-50 border-slate-100'}`}>
+                    <div className="flex items-center gap-2">
+                      <Swords size={12} className={isFinal ? 'text-amber-600' : is3rd ? 'text-orange-600' : 'text-slate-400'} />
+                      <span className={`text-[10px] font-black uppercase tracking-widest ${isFinal ? 'text-amber-800' : is3rd ? 'text-orange-800' : 'text-slate-600'}`}>{round.label}</span>
+                      <span className={`text-[9px] font-bold px-2 py-0.5 rounded-lg ${isFinal ? 'bg-amber-200 text-amber-800' : is3rd ? 'bg-orange-200 text-orange-800' : 'bg-purple-100 text-purple-700'}`}>+{round.pts} pts</span>
                     </div>
-
-                    {/* Teams */}
-                    <div className="flex-1 min-w-0">
-                      {isPlayed ? (
-                        <div className="flex items-center gap-2">
-                          {winnerT?.c && <img src={`https://flagcdn.com/w40/${winnerT.c}.png`} className="w-5 h-3.5 object-cover rounded flex-shrink-0" alt="" />}
-                          <span className="text-xs font-black text-slate-800 truncate">{winnerT?.n || winner?.n}</span>
-                          <span className="text-[9px] font-bold text-slate-400">won</span>
-                        </div>
-                      ) : (
-                        <div className="flex items-center gap-1.5 text-[10px] font-black text-slate-600 truncate">
-                          <span className="truncate">{resolveSlot(fix.t1)}</span>
-                          <span className="text-slate-300 flex-shrink-0">vs</span>
-                          <span className="truncate">{resolveSlot(fix.t2)}</span>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Your pick + result */}
-                    <div className="flex items-center gap-2 flex-shrink-0">
-                      {myT && (
-                        <div className="flex items-center gap-1">
-                          {myT?.c && <img src={`https://flagcdn.com/w40/${myT.c}.png`} className="w-4 h-2.5 object-cover rounded flex-shrink-0" alt="" />}
-                          <span className={`text-[9px] font-black ${correct ? 'text-emerald-600' : wrong ? 'text-red-400 line-through' : 'text-slate-400'}`}>{myT?.n || myPick?.n}</span>
-                        </div>
-                      )}
-                      {correct && <span className="bg-emerald-500 text-white text-[8px] font-black px-1.5 py-0.5 rounded-lg">+5</span>}
-                      {wrong   && <span className="bg-red-400   text-white text-[8px] font-black px-1.5 py-0.5 rounded-lg">✗</span>}
-                      {isUpcoming && !myT && <span className="text-[8px] text-slate-300 italic">no pick</span>}
-                    </div>
+                    {!hasAnyResult && <span className="text-[9px] text-slate-400 font-bold italic">upcoming</span>}
                   </div>
-                );
-              })}
-            </div>
-          </div>
 
-          {/* Round-by-round match cards */}
-          {ROUNDS.map(round => {
-            const roundMatches = round.ids.filter(mid => offBracket[mid]);
-            if (roundMatches.length === 0) return (
-              <div key={round.key} className="bg-slate-50 border border-dashed border-slate-200 rounded-2xl p-5">
-                <div className="flex items-center gap-3">
-                  <div className="w-2 h-2 rounded-full bg-slate-300" />
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{round.label} <span className="font-normal normal-case">— results pending</span></p>
-                  <span className="text-[9px] text-slate-300 font-bold">+{round.pts} pts per match</span>
-                </div>
-              </div>
-            );
+                  {/* Match rows */}
+                  <div className="divide-y divide-slate-50 bg-white">
+                    {round.matches.map((m: any) => {
+                      const t1 = resolveOfficial(m.t1);
+                      const t2 = resolveOfficial(m.t2);
+                      const winner  = offBracket[m.id];
+                      const myPick  = myBracket[m.id];
+                      const isPlayed = !!winner;
+                      const winnerT  = winner ? (getTeam(winner.id) || winner) : null;
+                      const myT      = myPick  ? (getTeam(myPick.id)  || myPick)  : null;
+                      const correct  = isPlayed && myPick?.id === winner?.id;
+                      const wrong    = isPlayed && myPick && myPick.id !== winner?.id;
 
-            const roundCorrect = roundMatches.filter(mid => myBracket[mid]?.id === offBracket[mid]?.id).length;
-            const roundEarned  = roundMatches.reduce((s, mid) => myBracket[mid]?.id === offBracket[mid]?.id ? s + round.pts : s, 0);
-            const isFinal      = round.key === 'f';
-            const is3rd        = round.key === '3p';
-
-            return (
-              <div key={round.key} className={`rounded-[2rem] border-2 overflow-hidden shadow-sm ${isFinal ? 'border-amber-300 bg-amber-50' : is3rd ? 'border-orange-200 bg-orange-50' : 'border-slate-200 bg-white'}`}>
-                {/* Round header */}
-                <div className={`flex items-center justify-between px-6 py-4 border-b ${isFinal ? 'border-amber-200 bg-amber-100/50' : is3rd ? 'border-orange-200 bg-orange-100/50' : 'border-slate-100 bg-slate-50'}`}>
-                  <div className="flex items-center gap-3">
-                    <span className={`text-xs font-black uppercase tracking-widest ${isFinal ? 'text-amber-800' : is3rd ? 'text-orange-800' : 'text-slate-700'}`}>{round.label}</span>
-                    <span className={`text-[9px] font-bold px-2 py-0.5 rounded-lg ${isFinal ? 'bg-amber-200 text-amber-800' : is3rd ? 'bg-orange-200 text-orange-800' : 'bg-purple-100 text-purple-700'}`}>+{round.pts} pts each</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-[10px] font-bold text-slate-400">{roundCorrect}/{roundMatches.length} correct</span>
-                    <span className={`text-sm font-black ${roundEarned > 0 ? 'text-emerald-600' : 'text-slate-400'}`}>+{roundEarned}pts</span>
-                  </div>
-                </div>
-
-                {/* Match cards grid */}
-                <div className={`p-5 grid gap-3 ${isFinal || is3rd ? 'grid-cols-1 max-w-md mx-auto' : 'grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4'}`}>
-                  {roundMatches.map(mid => {
-                    const offWinner = offBracket[mid];
-                    const myWinner  = myBracket[mid];
-                    const correct   = !!(offWinner && myWinner?.id === offWinner.id);
-                    const wrong     = !!(offWinner && myWinner && myWinner.id !== offWinner.id);
-                    const offT      = offWinner ? (getTeam(offWinner.id) || offWinner) : null;
-                    const myT       = myWinner  ? (getTeam(myWinner.id)  || myWinner)  : null;
-
-                    return (
-                      <div key={mid} className={`rounded-2xl border-2 overflow-hidden ${correct ? 'border-emerald-300 bg-emerald-50' : wrong ? 'border-red-200 bg-red-50' : 'border-slate-200 bg-white'}`}>
-                        {/* Winner row */}
-                        <div className={`px-4 py-3 flex items-center justify-between gap-2 ${correct ? 'bg-emerald-100/60' : wrong ? 'bg-red-100/40' : 'bg-slate-100/60'}`}>
-                          <div className="flex items-center gap-2 min-w-0">
-                            {offT?.c && <img src={`https://flagcdn.com/w40/${offT.c}.png`} className="w-6 h-4 object-cover rounded shadow-sm flex-shrink-0" alt="" />}
-                            <div className="min-w-0">
-                              <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest leading-none mb-0.5">Winner</p>
-                              <p className="text-xs font-black text-slate-900 truncate">{offT?.n || offWinner?.n || '—'}</p>
+                      return (
+                        <div key={m.id} className={`px-5 py-3 flex items-center gap-3 ${correct ? 'bg-emerald-50' : wrong ? 'bg-red-50/40' : ''}`}>
+                          {/* Match teams — exactly like the Bracket tab MatchBox */}
+                          <div className="flex-1 min-w-0">
+                            {/* Team 1 */}
+                            <div className={`flex items-center gap-2 py-1 ${isPlayed && winnerT?.id === t1?.id ? 'opacity-100' : isPlayed ? 'opacity-30' : ''}`}>
+                              {t1?.c
+                                ? <img src={`https://flagcdn.com/w40/${t1.c}.png`} className="w-5 h-3.5 object-cover rounded shadow-sm flex-shrink-0" alt="" />
+                                : <div className="w-5 h-3.5 bg-slate-100 rounded-sm flex-shrink-0" />}
+                              <span className={`text-[11px] font-black uppercase truncate ${t1?.placeholder ? 'text-slate-300 italic font-normal text-[10px]' : 'text-slate-800'}`}>
+                                {t1?.n || t1?.placeholder || 'TBD'}
+                              </span>
+                              {isPlayed && winnerT?.id === t1?.id && <Check size={12} strokeWidth={3} className="text-emerald-500 flex-shrink-0" />}
+                            </div>
+                            {/* Divider */}
+                            <div className="border-t border-slate-50 my-0.5" />
+                            {/* Team 2 */}
+                            <div className={`flex items-center gap-2 py-1 ${isPlayed && winnerT?.id === t2?.id ? 'opacity-100' : isPlayed ? 'opacity-30' : ''}`}>
+                              {t2?.c
+                                ? <img src={`https://flagcdn.com/w40/${t2.c}.png`} className="w-5 h-3.5 object-cover rounded shadow-sm flex-shrink-0" alt="" />
+                                : <div className="w-5 h-3.5 bg-slate-100 rounded-sm flex-shrink-0" />}
+                              <span className={`text-[11px] font-black uppercase truncate ${t2?.placeholder ? 'text-slate-300 italic font-normal text-[10px]' : 'text-slate-800'}`}>
+                                {t2?.n || t2?.placeholder || 'TBD'}
+                              </span>
+                              {isPlayed && winnerT?.id === t2?.id && <Check size={12} strokeWidth={3} className="text-emerald-500 flex-shrink-0" />}
                             </div>
                           </div>
-                          {correct
-                            ? <span className="flex-shrink-0 bg-emerald-500 text-white text-[9px] font-black px-2 py-1 rounded-lg">+{round.pts}</span>
-                            : wrong
-                            ? <span className="flex-shrink-0 bg-red-400 text-white text-[9px] font-black px-2 py-1 rounded-lg">✗</span>
-                            : <span className="flex-shrink-0 text-slate-300 text-[9px] font-bold">—</span>
-                          }
+
+                          {/* Your pick + points */}
+                          <div className="flex-shrink-0 flex flex-col items-end gap-1 min-w-[80px]">
+                            {myT && (
+                              <div className="flex items-center gap-1">
+                                {myT?.c && <img src={`https://flagcdn.com/w40/${myT.c}.png`} className="w-4 h-2.5 object-cover rounded flex-shrink-0" alt="" />}
+                                <span className={`text-[9px] font-black ${correct ? 'text-emerald-600' : wrong ? 'text-red-400 line-through' : 'text-slate-400'}`}>{myT?.n || myPick?.n}</span>
+                              </div>
+                            )}
+                            {correct && <span className="bg-emerald-500 text-white text-[8px] font-black px-2 py-0.5 rounded-lg">+{round.pts}</span>}
+                            {wrong   && <span className="bg-red-400 text-white text-[8px] font-black px-2 py-0.5 rounded-lg">✗</span>}
+                            {!isPlayed && myT && <span className="text-[8px] text-blue-400 font-bold">your pick</span>}
+                            {!isPlayed && !myT && <span className="text-[8px] text-slate-300 italic">no pick</span>}
+                          </div>
                         </div>
-                        {/* Your pick row */}
-                        <div className="px-4 py-2 flex items-center gap-2 border-t border-slate-100">
-                          <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest flex-shrink-0">Your pick:</span>
-                          {myT ? (
-                            <div className="flex items-center gap-1.5 min-w-0">
-                              {myT?.c && <img src={`https://flagcdn.com/w40/${myT.c}.png`} className={`w-4 h-2.5 object-cover rounded flex-shrink-0 ${wrong ? 'opacity-60' : ''}`} alt="" />}
-                              <span className={`text-[10px] font-black truncate ${correct ? 'text-emerald-700' : wrong ? 'text-red-500 line-through opacity-70' : 'text-slate-600'}`}>
-                                {myT?.n || myWinner?.n}
-                              </span>
-                            </div>
-                          ) : (
-                            <span className="text-[10px] text-slate-300 italic">No pick</span>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
+                      );
+                    })}
+                  </div>
                 </div>
-              </div>
-            );
-          })}
+              );
+            });
+          })()}
+
         </div>
       )}
 
