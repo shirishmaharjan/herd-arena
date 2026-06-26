@@ -47,88 +47,78 @@ function useToast() {
 // ─── POINTS BREAKDOWN CARD ────────────────────────────────────────────────────
 function PointsBreakdownCard({ stage }: { stage: 'group' | 'knockout' | 'final' }) {
   if (stage === 'group') return (
-    <div className="mb-8 bg-gradient-to-br from-blue-50 to-indigo-50 border-2 border-blue-100 rounded-[2rem] p-6">
-      <h3 className="text-[10px] font-black text-blue-700 uppercase tracking-widest mb-4 flex items-center gap-2">
-        <Target size={14} /> Points Available — Stage 1
-      </h3>
-      <div className="grid grid-cols-1 gap-3">
-        {[
-          { label: 'Group Stage', calc: '12 groups × 3 positions × 2 pts', pts: 72, color: 'text-blue-700 bg-blue-100' },
-        ].map(({ label, calc, pts, color }) => (
-          <div key={label} className="bg-white rounded-2xl p-4 border border-blue-100">
-            <p className="font-black text-slate-800 text-sm">{label}</p>
-            <p className="text-slate-400 text-[10px] mt-0.5 leading-tight">{calc}</p>
-            <p className={`font-black text-xl mt-2 px-3 py-1 rounded-xl inline-block ${color}`}>{pts} pts</p>
-          </div>
-        ))}
-      </div>
-      <div className="mt-4 flex items-center justify-between bg-white rounded-2xl px-5 py-3 border border-blue-200">
-        <span className="text-xs font-black text-slate-600 uppercase tracking-wide">Stage 1 Maximum</span>
-        <span className="text-2xl font-black text-blue-700">72 pts</span>
-      </div>
+    <div className="mb-6 grid grid-cols-3 gap-3">
+      {[
+        { label: '12 Groups',    sub: '3 positions each', pts: '72', icon: '🏟️', color: 'bg-blue-50 border-blue-100 text-blue-700' },
+        { label: '2 pts each',   sub: 'per correct pick',  pts: '×2', icon: '✓',  color: 'bg-slate-50 border-slate-200 text-slate-600' },
+        { label: 'Stage Max',    sub: 'total available',   pts: '72', icon: '🎯', color: 'bg-blue-600 border-blue-600 text-white'       },
+      ].map(({ label, sub, pts, icon, color }) => (
+        <div key={label} className={`rounded-2xl border-2 p-4 text-center ${color}`}>
+          <div className="text-xl mb-1">{icon}</div>
+          <p className="text-[18px] font-black tabular-nums">{pts}</p>
+          <p className="text-[10px] font-black uppercase tracking-wide mt-0.5">{label}</p>
+          <p className="text-[9px] opacity-70 mt-0.5">{sub}</p>
+        </div>
+      ))}
     </div>
   );
 
   if (stage === 'knockout') return (
-    <div className="mb-8 bg-gradient-to-br from-purple-50 to-pink-50 border-2 border-purple-100 rounded-[2rem] p-6">
-      <h3 className="text-[10px] font-black text-purple-700 uppercase tracking-widest mb-4 flex items-center gap-2">
-        <Trophy size={14} /> Points Available — Stage 2
-      </h3>
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+    <div className="mb-6 space-y-3">
+      <div className="grid grid-cols-3 gap-2">
         {[
-          { label: 'Round of 32', calc: '16 matches × 5 pts', pts: 80, color: 'text-indigo-700 bg-indigo-100' },
-          { label: 'Round of 16', calc: '8 matches × 5 pts', pts: 40, color: 'text-purple-700 bg-purple-100' },
-          { label: 'Quarter-Finals', calc: '4 matches × 5 pts', pts: 20, color: 'text-fuchsia-700 bg-fuchsia-100' },
-          { label: 'Semi-Finals', calc: '2 matches × 5 pts', pts: 10, color: 'text-pink-700 bg-pink-100' },
-          { label: '3rd Place', calc: '1 match × 10 pts', pts: 10, color: 'text-rose-700 bg-rose-100' },
-          { label: 'The Final', calc: '1 match × 20 pts', pts: 20, color: 'text-red-700 bg-red-100' },
-        ].map(({ label, calc, pts, color }) => (
-          <div key={label} className="bg-white rounded-2xl p-4 border border-purple-100">
-            <p className="font-black text-slate-800 text-sm">{label}</p>
-            <p className="text-slate-400 text-[10px] mt-0.5 leading-tight">{calc}</p>
-            <p className={`font-black text-xl mt-2 px-3 py-1 rounded-xl inline-block ${color}`}>{pts} pts</p>
+          { label: 'R32',  sub:'16 × 5 pts', pts: 80,  bar: 'bg-indigo-400' },
+          { label: 'R16',  sub:'8 × 5 pts',  pts: 40,  bar: 'bg-purple-400' },
+          { label: 'QF',   sub:'4 × 5 pts',  pts: 20,  bar: 'bg-fuchsia-400' },
+          { label: 'SF',   sub:'2 × 5 pts',  pts: 10,  bar: 'bg-pink-400' },
+          { label: '3rd',  sub:'1 × 10 pts', pts: 10,  bar: 'bg-rose-400' },
+          { label: 'Final',sub:'1 × 20 pts', pts: 20,  bar: 'bg-red-500' },
+        ].map(({ label, sub, pts, bar }) => (
+          <div key={label} className="bg-white border border-slate-100 rounded-2xl p-3 shadow-sm">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">{label}</span>
+              <span className="text-sm font-black text-slate-800">{pts}</span>
+            </div>
+            <div className="h-1 bg-slate-100 rounded-full overflow-hidden">
+              <div className={`h-full rounded-full ${bar}`} style={{ width: `${Math.round((pts/80)*100)}%` }} />
+            </div>
+            <p className="text-[8px] text-slate-400 font-bold mt-1">{sub}</p>
           </div>
         ))}
       </div>
-      <div className="mt-4 grid grid-cols-2 gap-3">
-        <div className="flex items-center justify-between bg-white rounded-2xl px-5 py-3 border border-purple-200">
-          <span className="text-xs font-black text-slate-600 uppercase tracking-wide">Stage 2 Maximum</span>
-          <span className="text-2xl font-black text-purple-700">180 pts</span>
+      <div className="grid grid-cols-2 gap-3">
+        <div className="bg-purple-50 border-2 border-purple-100 rounded-2xl px-4 py-3 flex items-center justify-between">
+          <span className="text-[10px] font-black text-purple-700 uppercase">Stage 2 Max</span>
+          <span className="text-xl font-black text-purple-700">180 pts</span>
         </div>
-        <div className="flex items-center justify-between bg-purple-700 rounded-2xl px-5 py-3">
-          <span className="text-xs font-black text-purple-200 uppercase tracking-wide">Cumulative Max</span>
-          <span className="text-2xl font-black text-white">252 pts</span>
+        <div className="bg-purple-700 rounded-2xl px-4 py-3 flex items-center justify-between">
+          <span className="text-[10px] font-black text-purple-200 uppercase">Cumulative</span>
+          <span className="text-xl font-black text-white">252 pts</span>
         </div>
       </div>
     </div>
   );
 
   return (
-    <div className="mb-8 bg-gradient-to-br from-amber-50 to-yellow-50 border-2 border-amber-200 rounded-[2rem] p-6">
-      <h3 className="text-[10px] font-black text-amber-700 uppercase tracking-widest mb-4 flex items-center gap-2">
-        <Star size={14} /> Points Available — Stage 3 (Final)
-      </h3>
+    <div className="mb-6 space-y-3">
       <div className="grid grid-cols-3 gap-3">
         {[
-          { label: '🏅 Golden Ball', pts: 5, color: 'text-amber-700 bg-amber-100' },
-          { label: '👟 Golden Boot', pts: 5, color: 'text-orange-700 bg-orange-100' },
-          { label: '🧤 Golden Gloves', pts: 5, color: 'text-yellow-700 bg-yellow-100' },
-        ].map(({ label, pts, color }) => (
-          <div key={label} className="bg-white rounded-2xl p-4 border border-amber-100 text-center">
-            <p className="font-black text-slate-800 text-sm">{label}</p>
-            <p className={`font-black text-2xl mt-2 px-3 py-1 rounded-xl inline-block ${color}`}>{pts} pts</p>
+          { label: '🏅 Golden Ball', pts: 5 },
+          { label: '👟 Golden Boot', pts: 5 },
+          { label: '🧤 Golden Gloves', pts: 5 },
+        ].map(({ label, pts }) => (
+          <div key={label} className="bg-amber-50 border-2 border-amber-100 rounded-2xl p-4 text-center">
+            <p className="text-sm font-black text-slate-700">{label}</p>
+            <p className="text-2xl font-black text-amber-600 mt-1">{pts} pts</p>
           </div>
         ))}
       </div>
-      <div className="mt-4 grid grid-cols-2 gap-3">
-        <div className="flex items-center justify-between bg-white rounded-2xl px-5 py-3 border border-amber-200">
-          <span className="text-xs font-black text-slate-600 uppercase tracking-wide">Player Awards Max</span>
-          <span className="text-2xl font-black text-amber-700">15 pts</span>
+      <div className="bg-slate-950 rounded-2xl px-5 py-4 flex items-center justify-between">
+        <div>
+          <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">🏆 Grand Total Maximum</p>
+          <p className="text-[10px] text-slate-500 mt-0.5">Groups 72 + Knockout 180 + Awards 15</p>
         </div>
-        <div className="flex items-center justify-between bg-slate-950 rounded-2xl px-5 py-3">
-          <span className="text-xs font-black text-slate-400 uppercase tracking-wide">🏆 Grand Total Max</span>
-          <span className="text-2xl font-black text-amber-400">267 pts</span>
-        </div>
+        <span className="text-3xl font-black text-amber-400">267 pts</span>
       </div>
     </div>
   );
@@ -138,41 +128,8 @@ function PointsBreakdownCard({ stage }: { stage: 'group' | 'knockout' | 'final' 
 function LeaderboardRow({ u, i, prev, maxPts, showDelta = true }: {
   u: any; i: number; prev: string[]; maxPts: number; showDelta?: boolean;
 }) {
-  const prevRank = prev.indexOf(u.id);
-  const moved = prevRank !== -1 ? prevRank - i : 0;
-  const pct = Math.round(((u.points ?? 0) / maxPts) * 100);
-  const isFirst = i === 0;
-  const medals = ['🥇', '🥈', '🥉'];
-
-  return (
-    <div className={`relative overflow-hidden rounded-[1.8rem] border-2 transition-all ${isFirst ? 'bg-slate-950 border-slate-800' : 'bg-slate-50 border-slate-200'}`}>
-      <div
-        className={`absolute left-0 top-0 h-full rounded-[1.8rem] transition-all opacity-10 ${isFirst ? 'bg-blue-400' : 'bg-blue-600'}`}
-        style={{ width: `${pct}%` }}
-      />
-      <div className="relative z-10 flex justify-between items-center p-5">
-        <div className="flex items-center gap-4">
-          <span className={`font-mono font-black text-xl w-8 text-center ${isFirst ? 'text-blue-400' : 'text-slate-300'}`}>
-            {i < 3 ? medals[i] : `#${i + 1}`}
-          </span>
-          <div>
-            <p className={`font-black text-base ${isFirst ? 'text-white' : 'text-slate-800'}`}>{u.bracket_name}</p>
-            <p className={`text-[10px] ${isFirst ? 'text-slate-500' : 'text-slate-400'}`}>
-              Submitted {new Date(u.created_at).toLocaleDateString()}
-            </p>
-          </div>
-        </div>
-        <div className="flex items-center gap-3">
-          {showDelta && moved > 0 && <span className="text-emerald-500 text-xs font-black flex items-center"><ChevronUp size={14} />+{moved}</span>}
-          {showDelta && moved < 0 && <span className="text-red-400 text-xs font-black flex items-center"><ChevronDown size={14} />{moved}</span>}
-          <div className="text-right">
-            <p className={`font-black text-2xl ${isFirst ? 'text-white' : 'text-blue-600'}`}>{u.points ?? 0}</p>
-            <p className={`text-[9px] uppercase font-bold ${isFirst ? 'text-slate-500' : 'text-slate-400'}`}>pts</p>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
+  // kept for backward compat but LeaderboardSection renders its own rows now
+  return null;
 }
 
 // ─── MINI STANDINGS (for login page) ─────────────────────────────────────────
@@ -1472,58 +1429,68 @@ export default function HerdArenaFinalMaster() {
               {/* ── STANDINGS HEADER BANNER ── */}
               <StandingsBanner />
 
-              {/* SECTION 1 — Group Stage + Round of 32 */}
-              <div className="bg-white border border-slate-100 rounded-[3rem] p-8 md:p-10 shadow-xl">
-                <div className="flex items-center gap-3 mb-2">
-                  <div className="bg-blue-600 p-3 rounded-2xl"><Target size={20} className="text-white" /></div>
-                  <div>
-                    <h2 className="text-xl font-black italic uppercase tracking-tighter">Stage 1 Standings</h2>
-                    <p className="text-slate-400 text-xs">Group Stage</p>
+              {/* ── STAGE 1 ─────────────────────────────────────────────── */}
+              <div className="rounded-[2.5rem] overflow-hidden border border-slate-200 shadow-xl">
+                {/* Stage header */}
+                <div className="bg-blue-600 px-8 py-6 flex items-center justify-between">
+                  <div className="flex items-center gap-4">
+                    <div className="bg-white/20 p-3 rounded-2xl"><Target size={22} className="text-white" /></div>
+                    <div>
+                      <p className="text-[9px] font-black text-blue-200 uppercase tracking-widest">Stage 1</p>
+                      <h2 className="text-2xl font-black text-white italic tracking-tight">Group Stage</h2>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-[9px] font-black text-blue-200 uppercase tracking-widest">Max Available</p>
+                    <p className="text-3xl font-black text-white tabular-nums">72 pts</p>
                   </div>
                 </div>
-                <div className="mb-1">
-                  <span className="inline-flex items-center gap-1.5 bg-blue-50 border border-blue-100 text-blue-700 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wide">
-                    Max 72 pts available
-                  </span>
+                <div className="bg-white p-6 md:p-8">
+                  <PointsBreakdownCard stage="group" />
+                  <LeaderboardSection scoreField="group_points" label="group stage" showWinner winnerLabel="Stage 1 Leader" maxStagePts={72} />
                 </div>
-                <PointsBreakdownCard stage="group" />
-                <LeaderboardSection scoreField="group_points" label="group stage" showWinner winnerLabel="Stage 1 Leader" maxStagePts={72} />
               </div>
 
-              {/* SECTION 2 — Knockout Bracket */}
-              <div className="bg-white border border-slate-100 rounded-[3rem] p-8 md:p-10 shadow-xl">
-                <div className="flex items-center gap-3 mb-2">
-                  <div className="bg-purple-600 p-3 rounded-2xl"><Zap size={20} className="text-white" /></div>
-                  <div>
-                    <h2 className="text-xl font-black italic uppercase tracking-tighter">Stage 2 Standings</h2>
-                    <p className="text-slate-400 text-xs">Knockout Bracket — R32 through Final</p>
+              {/* ── STAGE 2 ─────────────────────────────────────────────── */}
+              <div className="rounded-[2.5rem] overflow-hidden border border-slate-200 shadow-xl">
+                <div className="bg-purple-700 px-8 py-6 flex items-center justify-between">
+                  <div className="flex items-center gap-4">
+                    <div className="bg-white/20 p-3 rounded-2xl"><Zap size={22} className="text-white" /></div>
+                    <div>
+                      <p className="text-[9px] font-black text-purple-200 uppercase tracking-widest">Stage 2</p>
+                      <h2 className="text-2xl font-black text-white italic tracking-tight">Knockout Bracket</h2>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-[9px] font-black text-purple-200 uppercase tracking-widest">Cumulative Max</p>
+                    <p className="text-3xl font-black text-white tabular-nums">252 pts</p>
                   </div>
                 </div>
-                <div className="mb-1">
-                  <span className="inline-flex items-center gap-1.5 bg-purple-50 border border-purple-100 text-purple-700 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wide">
-                    Cumulative max 252 pts
-                  </span>
+                <div className="bg-white p-6 md:p-8">
+                  <PointsBreakdownCard stage="knockout" />
+                  <LeaderboardSection scoreField="knockout_points" label="knockout stage" cumulative showWinner winnerLabel="Stage 2 Leader" maxStagePts={252} />
                 </div>
-                <PointsBreakdownCard stage="knockout" />
-                <LeaderboardSection scoreField="knockout_points" label="knockout stage" cumulative showWinner winnerLabel="Stage 2 Leader" maxStagePts={252} />
               </div>
 
-              {/* SECTION 3 — Final with Player Honors */}
-              <div className="bg-white border border-slate-100 rounded-[3rem] p-8 md:p-10 shadow-xl">
-                <div className="flex items-center gap-3 mb-2">
-                  <div className="bg-amber-500 p-3 rounded-2xl"><Trophy size={20} className="text-white" /></div>
-                  <div>
-                    <h2 className="text-xl font-black italic uppercase tracking-tighter">🏆 Final Championship</h2>
-                    <p className="text-slate-400 text-xs">Player Honors + Complete Tournament Score</p>
+              {/* ── STAGE 3 / FINAL ─────────────────────────────────────── */}
+              <div className="rounded-[2.5rem] overflow-hidden border border-amber-200 shadow-xl">
+                <div className="bg-slate-950 px-8 py-6 flex items-center justify-between">
+                  <div className="flex items-center gap-4">
+                    <div className="bg-amber-400/20 p-3 rounded-2xl"><Trophy size={22} className="text-amber-400" /></div>
+                    <div>
+                      <p className="text-[9px] font-black text-amber-400/70 uppercase tracking-widest">Stage 3</p>
+                      <h2 className="text-2xl font-black text-white italic tracking-tight">🏆 Final Championship</h2>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Grand Total Max</p>
+                    <p className="text-3xl font-black text-amber-400 tabular-nums">267 pts</p>
                   </div>
                 </div>
-                <div className="mb-1">
-                  <span className="inline-flex items-center gap-1.5 bg-amber-50 border border-amber-100 text-amber-700 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wide">
-                    Grand total max 267 pts
-                  </span>
+                <div className="bg-white p-6 md:p-8">
+                  <PointsBreakdownCard stage="final" />
+                  <LeaderboardSection scoreField="points" label="tournament" isFinal showWinner winnerLabel="Overall Champion 🏆" maxStagePts={267} />
                 </div>
-                <PointsBreakdownCard stage="final" />
-                <LeaderboardSection scoreField="points" label="tournament" isFinal showWinner winnerLabel="Overall Champion 🏆" maxStagePts={267} />
               </div>
 
             </div>
@@ -2176,134 +2143,175 @@ function LeaderboardSection({
   });
   const maxBin = Math.max(...bins, 1);
 
+  // ── Score distribution buckets (10 bins, labelled) ──────────────────────────
+  const BIN_COUNT = 10;
+  const distBins = Array(BIN_COUNT).fill(0);
+  list.forEach(u => {
+    const pts = getDisplayPts(u);
+    const idx = Math.min(Math.floor((pts / maxStagePts) * BIN_COUNT), BIN_COUNT - 1);
+    distBins[idx]++;
+  });
+  const maxDistBin = Math.max(...distBins, 1);
+
+  // accent colours per stage
+  const accentBar    = isFinal ? '#f59e0b' : cumulative ? '#a855f7' : '#3b82f6';
+  const accentText   = isFinal ? 'text-amber-500' : cumulative ? 'text-purple-600' : 'text-blue-600';
+  const accentBadge  = isFinal ? 'bg-amber-100 text-amber-800' : cumulative ? 'bg-purple-100 text-purple-800' : 'bg-blue-100 text-blue-800';
+  const rankColors   = ['bg-amber-400','bg-slate-300','bg-orange-400'];
+
   return (
-    <div className="space-y-3">
-      {/* Score distribution mini-chart */}
-      {list.length >= 3 && (
-        <div className="bg-slate-50 border border-slate-100 rounded-2xl px-5 py-4 mb-2">
-          <div className="flex items-center justify-between mb-2">
-            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Score Distribution · {list.length} players</p>
-            <p className="text-[9px] font-bold text-slate-400">0 — {maxStagePts} pts</p>
+    <div className="space-y-4 mt-4">
+
+      {/* ── Leader hero card ── */}
+      {showWinner && topEntry && topPts > 0 && (
+        <div className="relative overflow-hidden rounded-[2rem] bg-slate-950 border border-white/10 shadow-2xl px-7 py-6">
+          <div className="absolute inset-0 opacity-[0.04]" style={{ backgroundImage:'radial-gradient(circle,#fff 1px,transparent 1px)',backgroundSize:'24px 24px' }} />
+          <div className="relative z-10 flex items-center justify-between gap-4">
+            <div className="flex items-center gap-4">
+              <div className="w-14 h-14 rounded-2xl bg-amber-400 flex items-center justify-center text-2xl shadow-lg flex-shrink-0">🥇</div>
+              <div>
+                <p className="text-[9px] font-black text-amber-400 uppercase tracking-widest mb-0.5">{winnerLabel}</p>
+                <p className="font-black text-white text-xl truncate max-w-[200px]">{topEntry.bracket_name}</p>
+                {isFinal && (
+                  <div className="flex items-center gap-1.5 mt-1.5">
+                    {[
+                      { l:'G', v: topEntry.group_points ?? 0,    c:'bg-blue-500/20 text-blue-300' },
+                      { l:'K', v: topEntry.knockout_points ?? 0, c:'bg-purple-500/20 text-purple-300' },
+                      { l:'A', v: topEntry.awards_points ?? 0,   c:'bg-amber-500/20 text-amber-300' },
+                    ].map(({ l, v, c }) => (
+                      <span key={l} className={`text-[9px] font-black px-2 py-0.5 rounded-lg ${c}`}>{l} {v}</span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+            <div className="text-right flex-shrink-0">
+              <p className="text-4xl font-black tabular-nums text-amber-400">{topPts}</p>
+              <p className="text-[9px] text-slate-500 uppercase font-bold">/ {maxStagePts} pts</p>
+              <div className="mt-1 h-1.5 w-24 ml-auto bg-white/10 rounded-full overflow-hidden">
+                <div className="h-full rounded-full bg-amber-400" style={{ width:`${Math.round((topPts/maxStagePts)*100)}%` }} />
+              </div>
+            </div>
           </div>
-          <div className="flex items-end gap-1 h-8">
-            {bins.map((count, i) => {
-              const heightPct = Math.round((count / maxBin) * 100);
-              const rangeStart = Math.round((i / binCount) * maxStagePts);
-              const rangeEnd   = Math.round(((i + 1) / binCount) * maxStagePts);
+        </div>
+      )}
+
+      {/* ── Score distribution chart ── */}
+      {list.length >= 4 && (
+        <div className="bg-white border border-slate-100 rounded-2xl px-5 py-4 shadow-sm">
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Score Distribution — {list.length} Players</p>
+            <p className="text-[9px] font-bold text-slate-400 tabular-nums">0 – {maxStagePts} pts</p>
+          </div>
+          <div className="flex items-end gap-1 h-12">
+            {distBins.map((count, bi) => {
+              const hPct = Math.round((count / maxDistBin) * 100);
+              const lo   = Math.round((bi     / BIN_COUNT) * maxStagePts);
+              const hi   = Math.round(((bi+1) / BIN_COUNT) * maxStagePts);
               return (
-                <div key={i} className="flex-1 flex flex-col items-center gap-0.5" title={`${rangeStart}–${rangeEnd} pts: ${count} player${count !== 1 ? 's' : ''}`}>
+                <div key={bi} className="flex-1 flex flex-col items-center gap-0.5 group relative">
                   <div
-                    className="w-full rounded-t-sm transition-all"
+                    className="w-full rounded-t transition-all"
                     style={{
-                      height: `${Math.max(heightPct, count > 0 ? 8 : 0)}%`,
-                      background: count > 0
-                        ? `linear-gradient(180deg, #3b82f6, #6366f1)`
-                        : '#e2e8f0',
-                      opacity: count > 0 ? 0.85 : 0.3,
+                      height: `${Math.max(hPct, count > 0 ? 10 : 0)}%`,
+                      background: count > 0 ? accentBar : '#e2e8f0',
+                      opacity: count > 0 ? 0.8 : 0.3,
                     }}
                   />
+                  {/* tooltip */}
+                  {count > 0 && (
+                    <div className="absolute bottom-full mb-1 left-1/2 -translate-x-1/2 hidden group-hover:block z-10 pointer-events-none">
+                      <div className="bg-slate-900 text-white text-[8px] font-bold rounded-lg px-2 py-1 whitespace-nowrap shadow">
+                        {lo}–{hi} pts · {count} player{count !== 1 ? 's' : ''}
+                      </div>
+                    </div>
+                  )}
                 </div>
               );
             })}
           </div>
-          <div className="flex justify-between mt-1">
-            <span className="text-[8px] text-slate-300 font-bold">Low</span>
-            <span className="text-[8px] text-slate-300 font-bold">High</span>
+          <div className="flex justify-between mt-1.5">
+            <span className="text-[8px] text-slate-300 font-bold">0</span>
+            {[...Array(4)].map((_, qi) => (
+              <span key={qi} className="text-[8px] text-slate-300 font-bold">{Math.round(((qi+1)/4)*maxStagePts)}</span>
+            ))}
           </div>
         </div>
       )}
-      {showWinner && topEntry && topPts > 0 && (
-        <div className="relative overflow-hidden flex items-center gap-3 bg-gradient-to-r from-slate-950 to-slate-800 rounded-[1.5rem] px-5 py-4 mb-4 shadow-lg border border-amber-500/20">
-          <div className="absolute inset-0 opacity-5" style={{ backgroundImage: 'radial-gradient(circle, #f59e0b 1px, transparent 1px)', backgroundSize: '20px 20px' }} />
-          <div className="text-2xl relative z-10">🥇</div>
-          <div className="flex-1 min-w-0 relative z-10">
-            <p className="text-[9px] font-black text-amber-400/80 uppercase tracking-widest">{winnerLabel}</p>
-            <p className="font-black text-white text-base truncate">{topEntry.bracket_name}</p>
-          </div>
-          <div className="text-right flex-shrink-0 relative z-10">
-            <p className="font-black text-2xl text-amber-400">{topPts}</p>
-            <p className="text-[9px] text-slate-500 uppercase font-bold">/ {maxStagePts} pts</p>
-          </div>
-        </div>
-      )}
-      {list.map((u, i) => {
-        const pts = getDisplayPts(u);
-        const prevRank = prev.indexOf(u.id);
-        const moved = prevRank !== -1 ? prevRank - i : 0;
-        const pct = Math.round((pts / maxStagePts) * 100);
-        const isFirst = i === 0;
-        const isTop3 = i < 3;
-        const gapToLeader = topPts - pts;
 
-        return (
-          <div
-            key={u.id ?? i}
-            className={`relative overflow-hidden rounded-[1.8rem] border-2 transition-all ${
-              isFirst    ? 'bg-slate-950 border-slate-800 shadow-lg' :
-              i === 1    ? 'bg-slate-50 border-slate-300' :
-              i === 2    ? 'bg-slate-50 border-slate-200' :
-                           'bg-slate-50 border-slate-200'
-            }`}
-          >
-            {/* Progress bar fill */}
+      {/* ── League table ── */}
+      <div className="bg-white border border-slate-100 rounded-[2rem] overflow-hidden shadow-sm">
+        {/* Table header */}
+        <div className="grid grid-cols-[32px_1fr_80px_48px] gap-2 px-4 py-2.5 border-b border-slate-100 bg-slate-50">
+          <div />
+          <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Name</p>
+          <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest text-right">Progress</p>
+          <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest text-right">Pts</p>
+        </div>
+        {/* Rows */}
+        {list.map((u, i) => {
+          const pts        = getDisplayPts(u);
+          const prevRank   = prev.indexOf(u.id);
+          const moved      = prevRank !== -1 ? prevRank - i : 0;
+          const pct        = Math.min(Math.round((pts / maxStagePts) * 100), 100);
+          const gapToLeader = topPts - pts;
+          const isFirst    = i === 0;
+          const isTop3     = i < 3;
+          const medals     = ['🥇','🥈','🥉'];
+
+          return (
             <div
-              className={`absolute left-0 top-0 h-full rounded-[1.8rem] transition-all ${isFirst ? 'opacity-15' : 'opacity-[0.07]'}`}
-              style={{
-                width: `${pct}%`,
-                background: isFirst ? '#60a5fa' : i === 1 ? '#94a3b8' : i === 2 ? '#fb923c' : '#3b82f6',
-              }}
-            />
-            <div className="relative z-10 flex justify-between items-center p-5">
-              <div className="flex items-center gap-4">
-                {/* Rank medal */}
-                <div className="flex flex-col items-center gap-0.5">
-                  <span className={`font-mono font-black text-xl w-8 text-center ${isFirst ? 'text-blue-400' : 'text-slate-300'}`}>
-                    {i < 3 ? medals[i] : `#${i + 1}`}
-                  </span>
-                  {isTop3 && (
-                    <div className={`w-1.5 h-1.5 rounded-full ${podiumColors[i].bg}`} />
+              key={u.id ?? i}
+              className={`grid grid-cols-[32px_1fr_80px_48px] gap-2 items-center px-4 py-3 border-b border-slate-50 last:border-0 transition-colors ${
+                isFirst ? 'bg-slate-950 hover:bg-slate-900' : 'hover:bg-slate-50'
+              }`}
+            >
+              {/* Rank */}
+              <div className="flex flex-col items-center gap-0.5">
+                <span className={`text-sm font-black ${isFirst ? 'text-amber-400' : isTop3 ? 'text-slate-500' : 'text-slate-300'}`}>
+                  {i < 3 ? medals[i] : <span className="text-[10px] font-black text-slate-400">#{i+1}</span>}
+                </span>
+                {moved > 0 && <span className="text-emerald-500 text-[8px] font-black flex items-center leading-none"><ChevronUp size={9}/>+{moved}</span>}
+                {moved < 0 && <span className="text-red-400 text-[8px] font-black flex items-center leading-none"><ChevronDown size={9}/>{moved}</span>}
+              </div>
+
+              {/* Name + meta */}
+              <div className="min-w-0">
+                <p className={`font-black text-sm truncate ${isFirst ? 'text-white' : 'text-slate-800'}`}>{u.bracket_name}</p>
+                <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                  {isFinal && pts > 0 && (
+                    <>
+                      <span className="text-[8px] font-black bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-md">G:{u.group_points??0}</span>
+                      <span className="text-[8px] font-black bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded-md">K:{u.knockout_points??0}</span>
+                      <span className="text-[8px] font-black bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-md">A:{u.awards_points??0}</span>
+                    </>
                   )}
-                </div>
-                <div>
-                  <p className={`font-black text-base ${isFirst ? 'text-white' : 'text-slate-800'}`}>{u.bracket_name}</p>
-                  <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-                    <p className={`text-[10px] ${isFirst ? 'text-slate-500' : 'text-slate-400'}`}>
-                      {new Date(u.created_at).toLocaleDateString()}
-                    </p>
-                    {isFinal && (
-                      <div className="flex items-center gap-1">
-                        {[
-                          { label: 'G', val: u.group_points ?? 0, color: 'bg-blue-100 text-blue-700' },
-                          { label: 'K', val: u.knockout_points ?? 0, color: 'bg-purple-100 text-purple-700' },
-                          { label: 'A', val: u.awards_points ?? 0, color: 'bg-amber-100 text-amber-700' },
-                        ].map(({ label, val, color }) => (
-                          <span key={label} className={`text-[8px] font-black px-1.5 py-0.5 rounded-md ${color}`}>
-                            {label}:{val}
-                          </span>
-                        ))}
-                      </div>
-                    )}
-                    {/* Gap to leader pill — only for non-leaders with pts > 0 */}
-                    {!isFirst && gapToLeader > 0 && pts > 0 && (
-                      <span className="text-[8px] font-black text-slate-400 bg-slate-100 border border-slate-200 px-1.5 py-0.5 rounded-md">
-                        -{gapToLeader} from top
-                      </span>
-                    )}
-                  </div>
+                  {!isFirst && gapToLeader > 0 && pts > 0 && (
+                    <span className="text-[8px] font-bold text-slate-400">-{gapToLeader}</span>
+                  )}
+                  {pts === 0 && <span className={`text-[8px] italic ${isFirst ? 'text-slate-600' : 'text-slate-300'}`}>pending</span>}
                 </div>
               </div>
-              <div className="flex items-center gap-3">
-                {moved > 0 && <span className="text-emerald-500 text-xs font-black flex items-center"><ChevronUp size={14} />+{moved}</span>}
-                {moved < 0 && <span className="text-red-400 text-xs font-black flex items-center"><ChevronDown size={14} />{moved}</span>}
-                <div className="text-right">
-                  <p className={`font-black text-2xl tabular-nums ${isFirst ? 'text-white' : 'text-blue-600'}`}>{pts}</p>
-                  <p className={`text-[9px] uppercase font-bold ${isFirst ? 'text-slate-500' : 'text-slate-400'}`}>pts</p>
+
+              {/* Progress bar */}
+              <div className="flex items-center gap-1.5">
+                <div className={`flex-1 h-1.5 rounded-full overflow-hidden ${isFirst ? 'bg-white/10' : 'bg-slate-100'}`}>
+                  <div
+                    className="h-full rounded-full transition-all"
+                    style={{ width:`${pct}%`, background: isFirst ? '#fbbf24' : accentBar }}
+                  />
                 </div>
+                <span className={`text-[8px] font-bold w-7 text-right tabular-nums ${isFirst ? 'text-slate-500' : 'text-slate-400'}`}>{pct}%</span>
+              </div>
+
+              {/* Points */}
+              <div className="text-right">
+                <p className={`font-black text-base tabular-nums ${isFirst ? 'text-amber-400' : accentText}`}>{pts}</p>
               </div>
             </div>
-          </div>
-        );
-      })}
+          );
+        })}
+      </div>
     </div>
   );
 }
