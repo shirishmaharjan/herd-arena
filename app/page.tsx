@@ -3435,6 +3435,18 @@ function LiveKnockoutView({ bracketName, getTeam }: { bracketName: string; getTe
             <p className="text-[10px] text-slate-400 font-bold mt-2">R32/R16/QF/SF = +5 pts each · 3rd Place = +10 · Final = +20</p>
           </div>
 
+          {/* ── How scoring works banner ── */}
+          <div className="bg-blue-50 border-2 border-blue-100 rounded-2xl px-5 py-4 flex items-start gap-3">
+            <div className="bg-blue-500 rounded-lg p-1.5 flex-shrink-0 mt-0.5"><Info size={13} className="text-white" /></div>
+            <div className="space-y-1">
+              <p className="text-[11px] font-black text-blue-900 uppercase tracking-wide">How Knockout Points Work</p>
+              <p className="text-[11px] text-blue-700 leading-relaxed">
+                You earn <span className="font-black">+5 pts</span> for each team you picked to win a round — <span className="font-black">no matter which fixture they play in.</span> If you picked Germany to win R32 and Germany wins any R32 match, you get the points. The fixture slot doesn't matter, only the team.
+              </p>
+              <p className="text-[10px] text-blue-500 font-bold mt-1">🎯 Your picks are shown in purple on the right of each fixture below.</p>
+            </div>
+          </div>
+
           {/* ── Fixtures: driven directly by BRACKET_MAPPING + official standings ── */}
           {(() => {
             // Use the same resolveTeam logic as the Bracket tab but reading from offStandings
@@ -3528,18 +3540,29 @@ function LiveKnockoutView({ bracketName, getTeam }: { bracketName: string; getTe
                             </div>
                           </div>
 
-                          {/* Your pick + points */}
-                          <div className="flex-shrink-0 flex flex-col items-end gap-1 min-w-[80px]">
-                            {myT && (
-                              <div className="flex items-center gap-1">
-                                {myT?.c && <img src={`https://flagcdn.com/w40/${myT.c}.png`} className="w-4 h-2.5 object-cover rounded flex-shrink-0" alt="" />}
-                                <span className={`text-[9px] font-black ${correct ? 'text-emerald-600' : wrong ? 'text-red-400 line-through' : 'text-slate-400'}`}>{myT?.n || myPick?.n}</span>
-                              </div>
+                          {/* Your pick — shown as a pill on the right */}
+                          <div className="flex-shrink-0 flex flex-col items-end gap-1.5 min-w-[90px]">
+                            {myT ? (
+                              <>
+                                <div className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border ${
+                                  correct ? 'bg-emerald-100 border-emerald-300' :
+                                  wrong   ? 'bg-red-50 border-red-200' :
+                                  'bg-purple-50 border-purple-200'
+                                }`}>
+                                  {myT?.c && <img src={`https://flagcdn.com/w40/${myT.c}.png`} className="w-4 h-2.5 object-cover rounded flex-shrink-0" alt="" />}
+                                  <span className={`text-[9px] font-black truncate max-w-[60px] ${
+                                    correct ? 'text-emerald-700' :
+                                    wrong   ? 'text-red-500 line-through' :
+                                    'text-purple-700'
+                                  }`}>{myT?.n || myPick?.n}</span>
+                                </div>
+                                {correct  && <span className="bg-emerald-500 text-white text-[8px] font-black px-2 py-0.5 rounded-lg self-end">✓ +{round.pts} pts</span>}
+                                {wrong    && <span className="bg-red-400 text-white text-[8px] font-black px-2 py-0.5 rounded-lg self-end">✗ eliminated</span>}
+                                {!isPlayed && <span className="text-[8px] text-purple-500 font-black self-end">🎯 your pick</span>}
+                              </>
+                            ) : (
+                              <span className="text-[8px] text-slate-300 italic px-2">no pick</span>
                             )}
-                            {correct && <span className="bg-emerald-500 text-white text-[8px] font-black px-2 py-0.5 rounded-lg">+{round.pts}</span>}
-                            {wrong   && <span className="bg-red-400 text-white text-[8px] font-black px-2 py-0.5 rounded-lg">✗</span>}
-                            {!isPlayed && myT && <span className="text-[8px] text-blue-400 font-bold">your pick</span>}
-                            {!isPlayed && !myT && <span className="text-[8px] text-slate-300 italic">no pick</span>}
                           </div>
                         </div>
                       );
