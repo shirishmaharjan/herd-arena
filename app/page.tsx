@@ -731,18 +731,51 @@ export default function HerdArenaFinalMaster() {
     const name = isAdmin ? 'OFFICIAL' : bracketName;
 
     if (isAdmin) {
-      // Admin: always wipe + re-insert the whole record
-      const fullPayload = {
-        bracket_name: name,
-        bracket_data: { standings, bracketWinners, thirds: selectedThirdsIds },
-        golden_ball: awards.ball.trim() || null,
-        golden_boot: awards.boot.trim() || null,
-        golden_gloves: awards.gloves.trim() || null,
+      // Admin: MERGE — load existing record first, deep-merge only touched fields.
+      // This means you can add D,E,F tonight without re-entering A,B,C.
+      const { data: existing } = await supabase
+        .from('official_results')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      const existingBD      = existing?.bracket_data || {};
+      const existingStands  = existingBD.standings      || {};
+      const existingWinners = existingBD.bracketWinners || {};
+      const existingThirds  = existingBD.thirds          || [];
+
+      // Only overwrite groups that have at least one position filled locally
+      const mergedStandings = { ...existingStands };
+      Object.entries(standings).forEach(([gid, ranks]) => {
+        if (Object.keys(ranks).length > 0) mergedStandings[gid] = ranks;
+      });
+
+      // Only overwrite bracket slots that have a winner locally
+      const mergedWinners = { ...existingWinners };
+      Object.entries(bracketWinners).forEach(([mid, winner]) => {
+        if (winner) mergedWinners[mid] = winner;
+      });
+
+      // Use local thirds if any selected, else keep existing
+      const mergedThirds = selectedThirdsIds.length > 0 ? selectedThirdsIds : existingThirds;
+
+      const mergedPayload: Record<string, any> = {
+        bracket_name:  name,
+        bracket_data:  { standings: mergedStandings, bracketWinners: mergedWinners, thirds: mergedThirds },
+        golden_ball:   awards.ball.trim()   || existing?.golden_ball   || null,
+        golden_boot:   awards.boot.trim()   || existing?.golden_boot   || null,
+        golden_gloves: awards.gloves.trim() || existing?.golden_gloves || null,
         ...patch,
       };
-      await supabase.from('official_results').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-      const { error } = await supabase.from('official_results').insert([fullPayload]);
-      if (error) throw error;
+
+      if (existing) {
+        const { error } = await supabase.from('official_results').update(mergedPayload).eq('id', existing.id);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase.from('official_results').insert([mergedPayload]);
+        if (error) throw error;
+      }
     } else {
       const { data: existing } = await supabase
         .from('submissions')
@@ -3074,6 +3107,33 @@ function GoldenAwardsRace({ bracketName }: { bracketName: string }) {
 // ─── LIVE KNOCKOUT VIEW ───────────────────────────────────────────────────────
 // Full live bracket experience: qualification summary, round-by-round match cards
 // showing both teams, the winner, user's pick, and points earned or missed.
+// ─── FIFA 2026 R32 FIXTURES ───────────────────────────────────────────────────
+// Official schedule for the Round of 32. matchId maps to BRACKET_MAPPING slots.
+// Teams shown as slot labels until groups finish; once admin saves standings they resolve.
+const FIFA_R32_FIXTURES = [
+  { matchId:'m1',  date:'2026-06-28', time:'18:00',label:'Match 1',  t1:'A1', t2:'3RD-BCDEF' },
+  { matchId:'m2',  date:'2026-06-28', time:'21:00',label:'Match 2',  t1:'C1', t2:'3RD-ABDEF' },
+  { matchId:'m3',  date:'2026-06-29', time:'18:00',label:'Match 3',  t1:'B1', t2:'3RD-ACDEF' },
+  { matchId:'m4',  date:'2026-06-29', time:'21:00',label:'Match 4',  t1:'D1', t2:'3RD-ABCEF' },
+  { matchId:'m5',  date:'2026-06-30', time:'18:00',label:'Match 5',  t1:'E1', t2:'3RD-ABCDF' },
+  { matchId:'m6',  date:'2026-06-30', time:'21:00',label:'Match 6',  t1:'F1', t2:'3RD-ABCDG' },
+  { matchId:'m7',  date:'2026-07-01', time:'18:00',label:'Match 7',  t1:'G1', t2:'3RD-ABCDE' },
+  { matchId:'m8',  date:'2026-07-01', time:'21:00',label:'Match 8',  t1:'H1', t2:'3RD-ABCFG' },
+  { matchId:'m9',  date:'2026-07-02', time:'18:00',label:'Match 9',  t1:'I1', t2:'3RD-ABCGH' },
+  { matchId:'m10', date:'2026-07-02', time:'21:00',label:'Match 10', t1:'J1', t2:'3RD-ABCHI' },
+  { matchId:'m11', date:'2026-07-03', time:'18:00',label:'Match 11', t1:'K1', t2:'3RD-ABCIJ' },
+  { matchId:'m12', date:'2026-07-03', time:'21:00',label:'Match 12', t1:'L1', t2:'3RD-ABCJK' },
+  { matchId:'m13', date:'2026-07-04', time:'18:00',label:'Match 13', t1:'A2', t2:'B2' },
+  { matchId:'m14', date:'2026-07-04', time:'21:00',label:'Match 14', t1:'C2', t2:'D2' },
+  { matchId:'m15', date:'2026-07-05', time:'18:00',label:'Match 15', t1:'E2', t2:'F2' },
+  { matchId:'m16', date:'2026-07-05', time:'21:00',label:'Match 16', t1:'G2', t2:'H2' },
+];
+
+function formatFixtureDate(dateStr: string, timeStr: string): string {
+  const d = new Date(`${dateStr}T${timeStr}:00Z`);
+  return d.toLocaleDateString('en-GB', { weekday:'short', day:'numeric', month:'short' }) + ' · ' + timeStr + ' UTC';
+}
+
 function LiveKnockoutView({ bracketName, getTeam }: { bracketName: string; getTeam: (id: string) => any }) {
   const [official, setOfficial] = useState<any>(null);
   const [mySub,    setMySub]    = useState<any>(null);
@@ -3338,6 +3398,85 @@ function LiveKnockoutView({ bracketName, getTeam }: { bracketName: string; getTe
               <div className="h-full rounded-full bg-gradient-to-r from-purple-500 to-pink-500 transition-all" style={{ width: `${Math.round((knockPts / 180) * 100)}%` }} />
             </div>
             <p className="text-[10px] text-slate-400 font-bold mt-2">R32/R16/QF/SF = +5 pts each · 3rd Place = +10 · Final = +20</p>
+          </div>
+
+          {/* ── R32 Fixtures schedule ── */}
+          <div className="bg-white border border-slate-100 rounded-[2rem] overflow-hidden shadow-sm">
+            <div className="flex items-center gap-3 px-6 py-5 border-b border-slate-100 bg-slate-50">
+              <div className="bg-slate-900 p-2 rounded-xl"><Swords size={14} className="text-white" /></div>
+              <div>
+                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Round of 32 — Full Schedule</p>
+                <p className="text-sm font-black text-slate-800">All 16 upcoming fixtures</p>
+              </div>
+            </div>
+            <div className="divide-y divide-slate-50">
+              {FIFA_R32_FIXTURES.map(fix => {
+                const winner = offBracket[fix.matchId];
+                const myPick = myBracket[fix.matchId];
+                const isPlayed = !!winner;
+                const correct  = isPlayed && myPick?.id === winner?.id;
+                const wrong    = isPlayed && myPick && myPick.id !== winner?.id;
+                const winnerT  = winner ? (getTeam(winner.id) || winner) : null;
+                const myT      = myPick  ? (getTeam(myPick.id) || myPick) : null;
+
+                // Resolve slot label to team name from official standings
+                const resolveSlot = (slot: string): string => {
+                  if (slot.startsWith('3RD')) return '3rd Place (TBD)';
+                  const gId = slot[0]; const rank = parseInt(slot[1]);
+                  const tid = offStandings[gId]?.[rank];
+                  if (!tid) return slot === slot ? `${rank === 1 ? '1st' : '2nd'} Group ${gId}` : slot;
+                  const t = getTeam(tid);
+                  return t?.n || tid;
+                };
+
+                const now = new Date();
+                const matchTime = new Date(`${fix.date}T${fix.time}:00Z`);
+                const isUpcoming = !isPlayed && matchTime > now;
+                const isToday = matchTime.toDateString() === now.toDateString();
+
+                return (
+                  <div key={fix.matchId} className={`flex items-center gap-4 px-5 py-3.5 hover:bg-slate-50 transition-colors ${isToday ? 'bg-amber-50/60' : ''}`}>
+                    {/* Date/time */}
+                    <div className="text-right flex-shrink-0 w-28">
+                      <p className={`text-[9px] font-black uppercase tracking-wide ${isToday ? 'text-amber-600' : 'text-slate-400'}`}>
+                        {isToday ? '🔴 TODAY' : new Date(`${fix.date}T12:00:00Z`).toLocaleDateString('en-GB', { weekday:'short', day:'numeric', month:'short' })}
+                      </p>
+                      <p className="text-[9px] text-slate-300 font-bold">{fix.time} UTC</p>
+                    </div>
+
+                    {/* Teams */}
+                    <div className="flex-1 min-w-0">
+                      {isPlayed ? (
+                        <div className="flex items-center gap-2">
+                          {winnerT?.c && <img src={`https://flagcdn.com/w40/${winnerT.c}.png`} className="w-5 h-3.5 object-cover rounded flex-shrink-0" alt="" />}
+                          <span className="text-xs font-black text-slate-800 truncate">{winnerT?.n || winner?.n}</span>
+                          <span className="text-[9px] font-bold text-slate-400">won</span>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-1.5 text-[10px] font-black text-slate-600 truncate">
+                          <span className="truncate">{resolveSlot(fix.t1)}</span>
+                          <span className="text-slate-300 flex-shrink-0">vs</span>
+                          <span className="truncate">{resolveSlot(fix.t2)}</span>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Your pick + result */}
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      {myT && (
+                        <div className="flex items-center gap-1">
+                          {myT?.c && <img src={`https://flagcdn.com/w40/${myT.c}.png`} className="w-4 h-2.5 object-cover rounded flex-shrink-0" alt="" />}
+                          <span className={`text-[9px] font-black ${correct ? 'text-emerald-600' : wrong ? 'text-red-400 line-through' : 'text-slate-400'}`}>{myT?.n || myPick?.n}</span>
+                        </div>
+                      )}
+                      {correct && <span className="bg-emerald-500 text-white text-[8px] font-black px-1.5 py-0.5 rounded-lg">+5</span>}
+                      {wrong   && <span className="bg-red-400   text-white text-[8px] font-black px-1.5 py-0.5 rounded-lg">✗</span>}
+                      {isUpcoming && !myT && <span className="text-[8px] text-slate-300 italic">no pick</span>}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </div>
 
           {/* Round-by-round match cards */}
