@@ -1608,7 +1608,7 @@ function ResultsView({ bracketName, getTeam }: { bracketName: string; getTeam: (
   const totalPts = groupPts + knockPts + awardPts;
 
   const hasGroups   = Object.keys(offStandings).length > 0;
-  const hasKnockout = Object.keys(offBracket).length > 0 || offThirds.length > 0;
+  const hasKnockout = true; // Always show Knockout tab — fixtures visible even before results
   const hasAwards   = awardPairs.length > 0;
 
   const tabs = [
@@ -1781,7 +1781,7 @@ function ResultsView({ bracketName, getTeam }: { bracketName: string; getTeam: (
           )}
 
           {/* ── KNOCKOUT ── */}
-          {section === 'knockout' && hasKnockout && (() => {
+          {section === 'knockout' && (() => {
             // Build round buckets using same mNum logic as scoring:
             // mNum 1–16=R32, 17–24=R16, 25–28=QF, 29–30=SF, 103=3rd, 104=Final
             const allOffIds = Object.keys(offBracket);
@@ -3188,9 +3188,9 @@ function LiveKnockoutView({ bracketName, getTeam }: { bracketName: string; getTe
   const myThirds      = (mySub?.bracket_data?.thirds as string[]) || [];
 
   const hasGroups   = Object.keys(offStandings).length > 0;
-  const hasKnockout = Object.keys(offBracket).length > 0 || offThirds.length > 0;
+  const hasKnockout = true; // Always show — fixtures visible before any results
   const hasAwards   = !!(official?.golden_ball || official?.golden_boot || official?.golden_gloves);
-  const noResults   = !official || (!hasGroups && !hasKnockout && !hasAwards);
+  const noResults   = !official || (!hasGroups && !hasAwards);
 
   // ── Score tallies ──────────────────────────────────────────────────────────
   let groupPts = 0;
@@ -3412,7 +3412,7 @@ function LiveKnockoutView({ bracketName, getTeam }: { bracketName: string; getTe
       {/* ════════════════════════════════════════════
           KNOCKOUT BRACKET
       ════════════════════════════════════════════ */}
-      {section === 'knockout' && hasKnockout && (
+      {section === 'knockout' && (
         <div className="space-y-6">
           {/* Knockout score bar */}
           <div className="bg-white border border-slate-100 rounded-2xl p-5 shadow-sm">
