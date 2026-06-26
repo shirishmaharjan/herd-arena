@@ -299,15 +299,35 @@ function AdminPanel({
       })
     );
 
-    // Knockout scoring
-    Object.keys(o.bracketWinners || {}).forEach(mid => {
-      if (u.bracketWinners?.[mid]?.id === o.bracketWinners[mid]?.id) {
-        const m = parseInt(mid.substring(1));
-        if (m <= 102) knockoutScore += 5;
-        else if (m === 103) knockoutScore += 10;
-        else if (m === 104) knockoutScore += 20;
-      }
-    });
+    // Knockout scoring — team-based, not slot-based.
+    // A colleague earns points if the team they picked to win a round
+    // actually won ANY match in that round, regardless of which slot/fixture.
+    const bw = o.bracketWinners || {};
+    const ub = u.bracketWinners || {};
+
+    // Build sets of team IDs that officially won each round
+    const offR32  = new Set(Object.entries(bw).filter(([mid]) => { const m=parseInt(mid.substring(1)); return m>=1  && m<=16;  }).map(([,w]:any) => w?.id).filter(Boolean));
+    const offR16  = new Set(Object.entries(bw).filter(([mid]) => { const m=parseInt(mid.substring(1)); return m>=17 && m<=24;  }).map(([,w]:any) => w?.id).filter(Boolean));
+    const offQF   = new Set(Object.entries(bw).filter(([mid]) => { const m=parseInt(mid.substring(1)); return m>=25 && m<=28;  }).map(([,w]:any) => w?.id).filter(Boolean));
+    const offSF   = new Set(Object.entries(bw).filter(([mid]) => { const m=parseInt(mid.substring(1)); return m>=29 && m<=30;  }).map(([,w]:any) => w?.id).filter(Boolean));
+    const off3rd  = bw['m103']?.id;
+    const offFinal= bw['m104']?.id;
+
+    // Build sets of team IDs the user picked to win each round
+    const myR32   = new Set(Object.entries(ub).filter(([mid]) => { const m=parseInt(mid.substring(1)); return m>=1  && m<=16;  }).map(([,w]:any) => w?.id).filter(Boolean));
+    const myR16   = new Set(Object.entries(ub).filter(([mid]) => { const m=parseInt(mid.substring(1)); return m>=17 && m<=24;  }).map(([,w]:any) => w?.id).filter(Boolean));
+    const myQF    = new Set(Object.entries(ub).filter(([mid]) => { const m=parseInt(mid.substring(1)); return m>=25 && m<=28;  }).map(([,w]:any) => w?.id).filter(Boolean));
+    const mySF    = new Set(Object.entries(ub).filter(([mid]) => { const m=parseInt(mid.substring(1)); return m>=29 && m<=30;  }).map(([,w]:any) => w?.id).filter(Boolean));
+    const my3rd   = ub['m103']?.id;
+    const myFinal = ub['m104']?.id;
+
+    // Award points for each correct team regardless of slot
+    myR32.forEach  (id => { if (offR32.has(id))   knockoutScore += 5;  });
+    myR16.forEach  (id => { if (offR16.has(id))   knockoutScore += 5;  });
+    myQF.forEach   (id => { if (offQF.has(id))    knockoutScore += 5;  });
+    mySF.forEach   (id => { if (offSF.has(id))    knockoutScore += 5;  });
+    if (my3rd  && my3rd   === off3rd)   knockoutScore += 10;
+    if (myFinal && myFinal === offFinal) knockoutScore += 20;
 
     const safeMatch = (a?: string, b?: string) =>
       a && b && a.trim().toLowerCase() === b.trim().toLowerCase();
@@ -3170,13 +3190,29 @@ function LiveKnockoutView({ bracketName, getTeam }: { bracketName: string; getTe
   Object.keys(offStandings).forEach(gid =>
     [1,2,3].forEach(r => { if (offStandings[gid]?.[r] && myStandings[gid]?.[r] === offStandings[gid]?.[r]) groupPts += 2; })
   );
+  // Knockout score — team-based: earn points if your picked team won that round,
+  // no matter which fixture slot they were in.
+  const offR32set  = new Set(Object.entries(offBracket).filter(([mid]) => { const m=parseInt(mid.substring(1)); return m>=1  && m<=16;  }).map(([,w]:any) => w?.id).filter(Boolean));
+  const offR16set  = new Set(Object.entries(offBracket).filter(([mid]) => { const m=parseInt(mid.substring(1)); return m>=17 && m<=24;  }).map(([,w]:any) => w?.id).filter(Boolean));
+  const offQFset   = new Set(Object.entries(offBracket).filter(([mid]) => { const m=parseInt(mid.substring(1)); return m>=25 && m<=28;  }).map(([,w]:any) => w?.id).filter(Boolean));
+  const offSFset   = new Set(Object.entries(offBracket).filter(([mid]) => { const m=parseInt(mid.substring(1)); return m>=29 && m<=30;  }).map(([,w]:any) => w?.id).filter(Boolean));
+  const off3rdId   = offBracket['m103']?.id;
+  const offFinalId = offBracket['m104']?.id;
+
+  const myR32set   = new Set(Object.entries(myBracket).filter(([mid]) => { const m=parseInt(mid.substring(1)); return m>=1  && m<=16;  }).map(([,w]:any) => w?.id).filter(Boolean));
+  const myR16set   = new Set(Object.entries(myBracket).filter(([mid]) => { const m=parseInt(mid.substring(1)); return m>=17 && m<=24;  }).map(([,w]:any) => w?.id).filter(Boolean));
+  const myQFset    = new Set(Object.entries(myBracket).filter(([mid]) => { const m=parseInt(mid.substring(1)); return m>=25 && m<=28;  }).map(([,w]:any) => w?.id).filter(Boolean));
+  const mySFset    = new Set(Object.entries(myBracket).filter(([mid]) => { const m=parseInt(mid.substring(1)); return m>=29 && m<=30;  }).map(([,w]:any) => w?.id).filter(Boolean));
+  const my3rdId    = myBracket['m103']?.id;
+  const myFinalId  = myBracket['m104']?.id;
+
   let knockPts = 0;
-  Object.keys(offBracket).forEach(mid => {
-    if (myBracket[mid]?.id === offBracket[mid]?.id) {
-      const m = parseInt(mid.substring(1));
-      knockPts += m <= 102 ? 5 : m === 103 ? 10 : 20;
-    }
-  });
+  myR32set.forEach (id => { if (offR32set.has(id))  knockPts += 5;  });
+  myR16set.forEach (id => { if (offR16set.has(id))  knockPts += 5;  });
+  myQFset.forEach  (id => { if (offQFset.has(id))   knockPts += 5;  });
+  mySFset.forEach  (id => { if (offSFset.has(id))   knockPts += 5;  });
+  if (my3rdId  && my3rdId  === off3rdId)   knockPts += 10;
+  if (myFinalId && myFinalId === offFinalId) knockPts += 20;
   const thirdsHits = offThirds.filter(id => myThirds.includes(id)).length;
   const awardPts = [
     [official?.golden_ball,   mySub?.golden_ball],
@@ -3455,8 +3491,14 @@ function LiveKnockoutView({ bracketName, getTeam }: { bracketName: string; getTe
                       const isPlayed = !!winner;
                       const winnerT  = winner ? (getTeam(winner.id) || winner) : null;
                       const myT      = myPick  ? (getTeam(myPick.id)  || myPick)  : null;
-                      const correct  = isPlayed && myPick?.id === winner?.id;
-                      const wrong    = isPlayed && myPick && myPick.id !== winner?.id;
+                      // Team-based: correct if my picked team won ANY match in this round
+                      const roundWinnerSet = new Set(
+                        Object.entries(offBracket)
+                          .filter(([mid2]) => round.ids.includes(mid2))
+                          .map(([,w]:any) => w?.id).filter(Boolean)
+                      );
+                      const correct  = isPlayed && !!myPick?.id && roundWinnerSet.has(myPick.id);
+                      const wrong    = isPlayed && !!myPick?.id && !roundWinnerSet.has(myPick.id);
 
                       return (
                         <div key={m.id} className={`px-5 py-3 flex items-center gap-3 ${correct ? 'bg-emerald-50' : wrong ? 'bg-red-50/40' : ''}`}>
