@@ -769,6 +769,7 @@ export default function HerdArenaFinalMaster() {
         golden_ball:   awards.ball.trim()   || existing?.golden_ball   || null,
         golden_boot:   awards.boot.trim()   || existing?.golden_boot   || null,
         golden_gloves: awards.gloves.trim() || existing?.golden_gloves || null,
+        updated_at:    new Date().toISOString(),
         ...patch,
       };
 
@@ -2005,8 +2006,8 @@ function StandingsBanner() {
         .order('created_at', { ascending: false })
         .limit(1)
         .maybeSingle();
-      if (official?.created_at) {
-        setLastUpdated(official.created_at);
+      if (official?.updated_at || official?.created_at) {
+        setLastUpdated(official.updated_at || official.created_at);
       }
     };
     load();
