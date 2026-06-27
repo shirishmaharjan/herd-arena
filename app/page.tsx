@@ -2002,7 +2002,7 @@ function StandingsBanner() {
       // Timestamp: read from official_results — this is updated whenever admin saves/recalculates
       const { data: official } = await supabase
         .from('official_results')
-        .select('created_at')
+        .select('created_at, updated_at')
         .order('created_at', { ascending: false })
         .limit(1)
         .maybeSingle();
