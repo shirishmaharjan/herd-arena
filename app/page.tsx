@@ -1553,7 +1553,8 @@ function ResultsView({ bracketName, getTeam }: { bracketName: string; getTeam: (
   const offThirds       = (official?.bracket_data?.thirds as string[]) || [];
   const myStandings     = mySub?.bracket_data?.standings    || {};
   const myBracket       = mySub?.bracket_data?.bracketWinners || {};
-  const myThirds        = (mySub?.bracket_data?.thirds as string[]) || [];
+  // myThirds = teams colleague placed 3rd in any group (not the admin thirds picker)
+  const myThirds: string[] = Object.values((mySub?.bracket_data?.standings || {}) as Record<string, Record<number,string>>).map((grp: any) => grp[3]).filter(Boolean);
 
   // Score tallies
   let groupHits = 0, groupTotal = 0;
@@ -3188,7 +3189,8 @@ function LiveKnockoutView({ bracketName, getTeam }: { bracketName: string; getTe
   const offThirds     = (official?.bracket_data?.thirds as string[]) || [];
   const myBracket     = mySub?.bracket_data?.bracketWinners    || {};
   const myStandings   = mySub?.bracket_data?.standings         || {};
-  const myThirds      = (mySub?.bracket_data?.thirds as string[]) || [];
+  // myThirds = teams colleague placed 3rd in any group
+  const myThirds: string[] = Object.values((myStandings || {}) as Record<string, Record<number,string>>).map((grp: any) => grp[3]).filter(Boolean);
 
   const hasGroups   = Object.keys(offStandings).length > 0;
   const hasKnockout = true; // Always show — fixtures visible before any results
