@@ -3362,7 +3362,7 @@ function LiveKnockoutView({ bracketName, getTeam }: { bracketName: string; getTe
                         <img src={`https://flagcdn.com/w40/${t.c}.png`} className="w-4 h-2.5 object-cover rounded flex-shrink-0" alt="" />
                         <span className="text-[10px] font-black text-slate-800 flex-1 truncate">{t.n}</span>
                         {iPicked
-                          ? <span className="text-[8px] font-black text-emerald-600 flex-shrink-0">✓ +0</span>
+                          ? <span className="text-[8px] font-black text-emerald-600 flex-shrink-0">✓</span>
                           : <span className="text-[8px] font-bold text-slate-300 flex-shrink-0">missed</span>}
                       </div>
                     ) : null;
