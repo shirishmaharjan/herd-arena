@@ -3532,7 +3532,7 @@ function LiveKnockoutView({ bracketName, getTeam }: { bracketName: string; getTe
                         <div className="flex flex-wrap gap-1.5">
                           {myRoundPicks.map((t: any, pi: number) => {
                             const isCorrect = roundWinnerSet.has(t.id);
-                            const isWrong   = roundHasResults && !isCorrect;
+                            const isWrong   = roundHasResults && roundWinnerSet.size > 0 && !isCorrect;
                             return (
                               <div key={pi} className={`flex items-center gap-1.5 px-2 py-1 rounded-lg border text-[9px] font-black ${
                                 isCorrect ? 'bg-emerald-100 border-emerald-300 text-emerald-800' :
@@ -3546,7 +3546,7 @@ function LiveKnockoutView({ bracketName, getTeam }: { bracketName: string; getTe
                             );
                           })}
                         </div>
-                        {roundHasResults && (
+                        {roundHasResults && roundWinnerSet.size > 0 && (
                           <p className="text-[8px] font-bold mt-2 text-slate-400">
                             {myRoundCorrect.length}/{myRoundPicks.length} correct
                             {myRoundWrong.length > 0 && <span className="text-red-400 ml-1">· {myRoundWrong.map((t:any) => t?.n).join(', ')} eliminated</span>}
