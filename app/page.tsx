@@ -3523,7 +3523,7 @@ function LiveKnockoutView({ bracketName, getTeam }: { bracketName: string; getTe
                 .map(w => getTeam(w.id) || w);
               const myRoundPtsEarned = myRoundPicks.filter(t => roundWinnerSet.has(t.id)).length * round.pts;
               const myRoundCorrect   = myRoundPicks.filter(t => roundWinnerSet.has(t.id));
-              const myRoundWrong     = roundHasResults ? myRoundPicks.filter(t => !roundWinnerSet.has(t.id)) : [];
+
 
               return (
                 <div key={round.key} className={`rounded-[2rem] border-2 overflow-hidden shadow-sm ${isFinal ? 'border-amber-300' : is3rd ? 'border-orange-200' : 'border-slate-200'}`}>
@@ -3569,13 +3569,24 @@ function LiveKnockoutView({ bracketName, getTeam }: { bracketName: string; getTe
                           })}
                         </div>
                         {playedMatchIds.size > 0 && (
-                          <p className="text-[8px] font-bold mt-2.5 text-slate-400">
-                            {myRoundCorrect.length > 0
-                              ? <span className="text-emerald-600">+{myRoundCorrect.length * round.pts} pts earned so far</span>
-                              : <span>No points yet</span>
-                            }
-                            <span className="ml-1">· {round.ids.length - playedMatchIds.size} matches remaining</span>
-                          </p>
+                          <div className="mt-2.5 flex items-center justify-between flex-wrap gap-1">
+                            {myRoundCorrect.length > 0 ? (
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <span className="text-[8px] font-black text-emerald-600 uppercase tracking-wide">Points earned:</span>
+                                {myRoundCorrect.map((t: any, i: number) => (
+                                  <span key={i} className="flex items-center gap-1 bg-emerald-50 border border-emerald-200 text-emerald-700 text-[8px] font-black px-1.5 py-0.5 rounded-lg">
+                                    {t?.c && <img src={`https://flagcdn.com/w40/${t.c}.png`} className="w-3 h-2 object-cover rounded flex-shrink-0" alt="" />}
+                                    {t?.n} +{round.pts}
+                                  </span>
+                                ))}
+                              </div>
+                            ) : (
+                              <span className="text-[8px] font-bold text-slate-400">No points earned yet</span>
+                            )}
+                            {round.ids.length - playedMatchIds.size > 0 && (
+                              <span className="text-[8px] font-bold text-slate-300">{round.ids.length - playedMatchIds.size} matches remaining</span>
+                            )}
+                          </div>
                         )}
                       </div>
                     )}
