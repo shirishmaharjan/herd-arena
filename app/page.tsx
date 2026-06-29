@@ -3493,8 +3493,23 @@ function LiveKnockoutView({ bracketName, getTeam }: { bracketName: string; getTe
               const isFinal = round.key === 'f';
               const is3rd   = round.key === '3p';
 
-              // Build round winner set once for the whole round
-              const roundWinnerSet = new Set(
+              // Build a set of match IDs that have been played in this round
+              const playedMatchIds = new Set(
+                round.ids.filter(mid => offBracket[mid])
+              );
+              // Build a set of team IDs that LOST in this round (played but didn't win)
+              const eliminatedIds = new Set(
+                round.ids
+                  .filter(mid => offBracket[mid])
+                  .flatMap(mid => {
+                    const m = BRACKET_MAPPING.find((x:any) => x.id === mid);
+                    if (!m) return [];
+                    const t1 = resolveOfficial(m.t1);
+                    const t2 = resolveOfficial(m.t2);
+                    const winnerId = offBracket[mid]?.id;
+                    return [t1?.id, t2?.id].filter(id => id && id !== winnerId);
+                  })
+              );
                 Object.entries(offBracket)
                   .filter(([mid2]) => round.ids.includes(mid2))
                   .map(([,w]:any) => w?.id).filter(Boolean)
@@ -3532,7 +3547,7 @@ function LiveKnockoutView({ bracketName, getTeam }: { bracketName: string; getTe
                         <div className="flex flex-wrap gap-1.5">
                           {myRoundPicks.map((t: any, pi: number) => {
                             const isCorrect = roundWinnerSet.has(t.id);
-                            const isWrong   = roundHasResults && roundWinnerSet.size > 0 && !isCorrect;
+                            const isWrong   = eliminatedIds.has(t.id);
                             return (
                               <div key={pi} className={`flex items-center gap-1.5 px-2 py-1 rounded-lg border text-[9px] font-black ${
                                 isCorrect ? 'bg-emerald-100 border-emerald-300 text-emerald-800' :
@@ -3546,10 +3561,12 @@ function LiveKnockoutView({ bracketName, getTeam }: { bracketName: string; getTe
                             );
                           })}
                         </div>
-                        {roundHasResults && roundWinnerSet.size > 0 && (
+                        {playedMatchIds.size > 0 && (
                           <p className="text-[8px] font-bold mt-2 text-slate-400">
-                            {myRoundCorrect.length}/{myRoundPicks.length} correct
-                            {myRoundWrong.length > 0 && <span className="text-red-400 ml-1">· {myRoundWrong.map((t:any) => t?.n).join(', ')} eliminated</span>}
+                            {myRoundCorrect.length} correct so far · {round.ids.length - playedMatchIds.size} matches remaining
+                            {myRoundPicks.filter((t:any) => eliminatedIds.has(t.id)).length > 0 && (
+                              <span className="text-red-400 ml-1">· {myRoundPicks.filter((t:any) => eliminatedIds.has(t.id)).map((t:any) => t?.n).join(', ')} eliminated</span>
+                            )}
                           </p>
                         )}
                       </div>
