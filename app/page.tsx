@@ -3362,7 +3362,7 @@ function LiveKnockoutView({ bracketName, getTeam }: { bracketName: string; getTe
                         <img src={`https://flagcdn.com/w40/${t.c}.png`} className="w-4 h-2.5 object-cover rounded flex-shrink-0" alt="" />
                         <span className="text-[10px] font-black text-slate-800 flex-1 truncate">{t.n}</span>
                         {iPicked
-                          ? <span className="text-[8px] font-black text-emerald-600 flex-shrink-0">✓</span>
+                          ? <span className="text-[8px] font-black text-emerald-600 flex-shrink-0">✓ +0</span>
                           : <span className="text-[8px] font-bold text-slate-300 flex-shrink-0">missed</span>}
                       </div>
                     ) : null;
@@ -3455,7 +3455,7 @@ function LiveKnockoutView({ bracketName, getTeam }: { bracketName: string; getTe
               <p className="text-[11px] text-blue-700 leading-relaxed">
                 You earn <span className="font-black">+5 pts</span> for each team you picked to win a round — <span className="font-black">no matter which fixture they play in.</span> If you picked Germany to win R32 and Germany wins any R32 match, you get the points. The fixture slot doesn't matter, only the team.
               </p>
-              <p className="text-[10px] text-blue-500 font-bold mt-1">🎯 Your picks are shown in purple on the right of each fixture below.</p>
+              <p className="text-[10px] text-blue-500 font-bold mt-1">🎯 Your picks for each round are shown as a summary strip above the fixtures — not per match.</p>
             </div>
           </div>
 
@@ -3493,43 +3493,84 @@ function LiveKnockoutView({ bracketName, getTeam }: { bracketName: string; getTe
               const isFinal = round.key === 'f';
               const is3rd   = round.key === '3p';
 
+              // Build round winner set once for the whole round
+              const roundWinnerSet = new Set(
+                Object.entries(offBracket)
+                  .filter(([mid2]) => round.ids.includes(mid2))
+                  .map(([,w]:any) => w?.id).filter(Boolean)
+              );
+              const roundHasResults = roundWinnerSet.size > 0;
+
+              // Collect all my picks for this round as a summary strip
+              const myRoundPicks = round.ids
+                .map(mid => myBracket[mid])
+                .filter(Boolean)
+                .map(w => getTeam(w.id) || w);
+              const myRoundPtsEarned = myRoundPicks.filter(t => roundWinnerSet.has(t.id)).length * round.pts;
+              const myRoundCorrect   = myRoundPicks.filter(t => roundWinnerSet.has(t.id));
+              const myRoundWrong     = roundHasResults ? myRoundPicks.filter(t => !roundWinnerSet.has(t.id)) : [];
+
               return (
                 <div key={round.key} className={`rounded-[2rem] border-2 overflow-hidden shadow-sm ${isFinal ? 'border-amber-300' : is3rd ? 'border-orange-200' : 'border-slate-200'}`}>
                   {/* Round header */}
-                  <div className={`flex items-center justify-between px-5 py-3.5 border-b ${isFinal ? 'bg-amber-50 border-amber-200' : is3rd ? 'bg-orange-50 border-orange-200' : 'bg-slate-50 border-slate-100'}`}>
-                    <div className="flex items-center gap-2">
-                      <Swords size={12} className={isFinal ? 'text-amber-600' : is3rd ? 'text-orange-600' : 'text-slate-400'} />
-                      <span className={`text-[10px] font-black uppercase tracking-widest ${isFinal ? 'text-amber-800' : is3rd ? 'text-orange-800' : 'text-slate-600'}`}>{round.label}</span>
-                      <span className={`text-[9px] font-bold px-2 py-0.5 rounded-lg ${isFinal ? 'bg-amber-200 text-amber-800' : is3rd ? 'bg-orange-200 text-orange-800' : 'bg-purple-100 text-purple-700'}`}>+{round.pts} pts</span>
+                  <div className={`px-5 py-4 border-b ${isFinal ? 'bg-amber-50 border-amber-200' : is3rd ? 'bg-orange-50 border-orange-200' : 'bg-slate-50 border-slate-100'}`}>
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-2">
+                        <Swords size={12} className={isFinal ? 'text-amber-600' : is3rd ? 'text-orange-600' : 'text-slate-400'} />
+                        <span className={`text-[10px] font-black uppercase tracking-widest ${isFinal ? 'text-amber-800' : is3rd ? 'text-orange-800' : 'text-slate-600'}`}>{round.label}</span>
+                        <span className={`text-[9px] font-bold px-2 py-0.5 rounded-lg ${isFinal ? 'bg-amber-200 text-amber-800' : is3rd ? 'bg-orange-200 text-orange-800' : 'bg-purple-100 text-purple-700'}`}>+{round.pts} pts each</span>
+                      </div>
+                      {roundHasResults
+                        ? <span className={`text-sm font-black ${myRoundPtsEarned > 0 ? 'text-emerald-600' : 'text-slate-400'}`}>+{myRoundPtsEarned} pts</span>
+                        : <span className="text-[9px] text-slate-400 font-bold italic">upcoming</span>}
                     </div>
-                    {!hasAnyResult && <span className="text-[9px] text-slate-400 font-bold italic">upcoming</span>}
+
+                    {/* ── Your picks summary strip ── */}
+                    {myRoundPicks.length > 0 && (
+                      <div className={`rounded-xl px-3 py-2.5 border ${roundHasResults ? 'bg-white border-slate-200' : 'bg-purple-50 border-purple-100'}`}>
+                        <p className="text-[8px] font-black uppercase tracking-widest mb-2 text-slate-400">🎯 Your {round.label} picks</p>
+                        <div className="flex flex-wrap gap-1.5">
+                          {myRoundPicks.map((t: any, pi: number) => {
+                            const isCorrect = roundWinnerSet.has(t.id);
+                            const isWrong   = roundHasResults && !isCorrect;
+                            return (
+                              <div key={pi} className={`flex items-center gap-1.5 px-2 py-1 rounded-lg border text-[9px] font-black ${
+                                isCorrect ? 'bg-emerald-100 border-emerald-300 text-emerald-800' :
+                                isWrong   ? 'bg-red-50 border-red-200 text-red-400 line-through opacity-60' :
+                                'bg-white border-purple-200 text-purple-800'
+                              }`}>
+                                {t?.c && <img src={`https://flagcdn.com/w40/${t.c}.png`} className="w-4 h-2.5 object-cover rounded flex-shrink-0" alt="" />}
+                                <span>{t?.n || t?.name || '?'}</span>
+                                {isCorrect && <span className="text-emerald-600 font-black">✓</span>}
+                              </div>
+                            );
+                          })}
+                        </div>
+                        {roundHasResults && (
+                          <p className="text-[8px] font-bold mt-2 text-slate-400">
+                            {myRoundCorrect.length}/{myRoundPicks.length} correct
+                            {myRoundWrong.length > 0 && <span className="text-red-400 ml-1">· {myRoundWrong.map((t:any) => t?.n).join(', ')} eliminated</span>}
+                          </p>
+                        )}
+                      </div>
+                    )}
                   </div>
 
-                  {/* Match rows */}
+                  {/* Match rows — clean, no pick on right side */}
                   <div className="divide-y divide-slate-50 bg-white">
                     {round.matches.map((m: any) => {
                       const t1 = resolveOfficial(m.t1);
                       const t2 = resolveOfficial(m.t2);
-                      const winner  = offBracket[m.id];
-                      const myPick  = myBracket[m.id];
+                      const winner   = offBracket[m.id];
                       const isPlayed = !!winner;
                       const winnerT  = winner ? (getTeam(winner.id) || winner) : null;
-                      const myT      = myPick  ? (getTeam(myPick.id)  || myPick)  : null;
-                      // Team-based: correct if my picked team won ANY match in this round
-                      const roundWinnerSet = new Set(
-                        Object.entries(offBracket)
-                          .filter(([mid2]) => round.ids.includes(mid2))
-                          .map(([,w]:any) => w?.id).filter(Boolean)
-                      );
-                      const correct  = isPlayed && !!myPick?.id && roundWinnerSet.has(myPick.id);
-                      const wrong    = isPlayed && !!myPick?.id && !roundWinnerSet.has(myPick.id);
 
                       return (
-                        <div key={m.id} className={`px-5 py-3 flex items-center gap-3 ${correct ? 'bg-emerald-50' : wrong ? 'bg-red-50/40' : ''}`}>
-                          {/* Match teams — exactly like the Bracket tab MatchBox */}
+                        <div key={m.id} className="px-5 py-3 flex items-center gap-3">
+                          {/* Match teams */}
                           <div className="flex-1 min-w-0">
                             {/* Team 1 */}
-                            <div className={`flex items-center gap-2 py-1 ${isPlayed && winnerT?.id === t1?.id ? 'opacity-100' : isPlayed ? 'opacity-30' : ''}`}>
+                            <div className={`flex items-center gap-2 py-1 ${isPlayed && winnerT?.id !== t1?.id ? 'opacity-30' : ''}`}>
                               {t1?.c
                                 ? <img src={`https://flagcdn.com/w40/${t1.c}.png`} className="w-5 h-3.5 object-cover rounded shadow-sm flex-shrink-0" alt="" />
                                 : <div className="w-5 h-3.5 bg-slate-100 rounded-sm flex-shrink-0" />}
@@ -3538,10 +3579,9 @@ function LiveKnockoutView({ bracketName, getTeam }: { bracketName: string; getTe
                               </span>
                               {isPlayed && winnerT?.id === t1?.id && <Check size={12} strokeWidth={3} className="text-emerald-500 flex-shrink-0" />}
                             </div>
-                            {/* Divider */}
                             <div className="border-t border-slate-50 my-0.5" />
                             {/* Team 2 */}
-                            <div className={`flex items-center gap-2 py-1 ${isPlayed && winnerT?.id === t2?.id ? 'opacity-100' : isPlayed ? 'opacity-30' : ''}`}>
+                            <div className={`flex items-center gap-2 py-1 ${isPlayed && winnerT?.id !== t2?.id ? 'opacity-30' : ''}`}>
                               {t2?.c
                                 ? <img src={`https://flagcdn.com/w40/${t2.c}.png`} className="w-5 h-3.5 object-cover rounded shadow-sm flex-shrink-0" alt="" />
                                 : <div className="w-5 h-3.5 bg-slate-100 rounded-sm flex-shrink-0" />}
@@ -3551,31 +3591,13 @@ function LiveKnockoutView({ bracketName, getTeam }: { bracketName: string; getTe
                               {isPlayed && winnerT?.id === t2?.id && <Check size={12} strokeWidth={3} className="text-emerald-500 flex-shrink-0" />}
                             </div>
                           </div>
-
-                          {/* Your pick — shown as a pill on the right */}
-                          <div className="flex-shrink-0 flex flex-col items-end gap-1.5 min-w-[90px]">
-                            {myT ? (
-                              <>
-                                <div className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border ${
-                                  correct ? 'bg-emerald-100 border-emerald-300' :
-                                  wrong   ? 'bg-red-50 border-red-200' :
-                                  'bg-purple-50 border-purple-200'
-                                }`}>
-                                  {myT?.c && <img src={`https://flagcdn.com/w40/${myT.c}.png`} className="w-4 h-2.5 object-cover rounded flex-shrink-0" alt="" />}
-                                  <span className={`text-[9px] font-black truncate max-w-[60px] ${
-                                    correct ? 'text-emerald-700' :
-                                    wrong   ? 'text-red-500 line-through' :
-                                    'text-purple-700'
-                                  }`}>{myT?.n || myPick?.n}</span>
-                                </div>
-                                {correct  && <span className="bg-emerald-500 text-white text-[8px] font-black px-2 py-0.5 rounded-lg self-end">✓ +{round.pts} pts</span>}
-                                {wrong    && <span className="bg-red-400 text-white text-[8px] font-black px-2 py-0.5 rounded-lg self-end">✗ eliminated</span>}
-                                {!isPlayed && <span className="text-[8px] text-purple-500 font-black self-end">🎯 your pick</span>}
-                              </>
-                            ) : (
-                              <span className="text-[8px] text-slate-300 italic px-2">no pick</span>
-                            )}
-                          </div>
+                          {/* Result badge */}
+                          {isPlayed && (
+                            <div className="flex-shrink-0 text-right">
+                              <span className="text-[9px] font-black text-slate-400 uppercase">Result</span>
+                              <p className="text-[10px] font-black text-slate-700">{winnerT?.n || winner?.n} won</p>
+                            </div>
+                          )}
                         </div>
                       );
                     })}
