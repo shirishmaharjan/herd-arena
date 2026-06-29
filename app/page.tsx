@@ -3591,53 +3591,6 @@ function LiveKnockoutView({ bracketName, getTeam }: { bracketName: string; getTe
                       </div>
                     )}
                   </div>
-
-                  {/* Match rows — clean, no pick on right side */}
-                  <div className="divide-y divide-slate-50 bg-white">
-                    {round.matches.map((m: any) => {
-                      const t1 = resolveOfficial(m.t1);
-                      const t2 = resolveOfficial(m.t2);
-                      const winner   = offBracket[m.id];
-                      const isPlayed = !!winner;
-                      const winnerT  = winner ? (getTeam(winner.id) || winner) : null;
-
-                      return (
-                        <div key={m.id} className="px-5 py-3 flex items-center gap-3">
-                          {/* Match teams */}
-                          <div className="flex-1 min-w-0">
-                            {/* Team 1 */}
-                            <div className={`flex items-center gap-2 py-1 ${isPlayed && winnerT?.id !== t1?.id ? 'opacity-30' : ''}`}>
-                              {t1?.c
-                                ? <img src={`https://flagcdn.com/w40/${t1.c}.png`} className="w-5 h-3.5 object-cover rounded shadow-sm flex-shrink-0" alt="" />
-                                : <div className="w-5 h-3.5 bg-slate-100 rounded-sm flex-shrink-0" />}
-                              <span className={`text-[11px] font-black uppercase truncate ${t1?.placeholder ? 'text-slate-300 italic font-normal text-[10px]' : 'text-slate-800'}`}>
-                                {t1?.n || t1?.placeholder || 'TBD'}
-                              </span>
-                              {isPlayed && winnerT?.id === t1?.id && <Check size={12} strokeWidth={3} className="text-emerald-500 flex-shrink-0" />}
-                            </div>
-                            <div className="border-t border-slate-50 my-0.5" />
-                            {/* Team 2 */}
-                            <div className={`flex items-center gap-2 py-1 ${isPlayed && winnerT?.id !== t2?.id ? 'opacity-30' : ''}`}>
-                              {t2?.c
-                                ? <img src={`https://flagcdn.com/w40/${t2.c}.png`} className="w-5 h-3.5 object-cover rounded shadow-sm flex-shrink-0" alt="" />
-                                : <div className="w-5 h-3.5 bg-slate-100 rounded-sm flex-shrink-0" />}
-                              <span className={`text-[11px] font-black uppercase truncate ${t2?.placeholder ? 'text-slate-300 italic font-normal text-[10px]' : 'text-slate-800'}`}>
-                                {t2?.n || t2?.placeholder || 'TBD'}
-                              </span>
-                              {isPlayed && winnerT?.id === t2?.id && <Check size={12} strokeWidth={3} className="text-emerald-500 flex-shrink-0" />}
-                            </div>
-                          </div>
-                          {/* Result badge */}
-                          {isPlayed && (
-                            <div className="flex-shrink-0 text-right">
-                              <span className="text-[9px] font-black text-slate-400 uppercase">Result</span>
-                              <p className="text-[10px] font-black text-slate-700">{winnerT?.n || winner?.n} won</p>
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
                 </div>
               );
             });
