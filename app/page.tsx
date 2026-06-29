@@ -3544,29 +3544,37 @@ function LiveKnockoutView({ bracketName, getTeam }: { bracketName: string; getTe
                     {myRoundPicks.length > 0 && (
                       <div className={`rounded-xl px-3 py-2.5 border ${roundHasResults ? 'bg-white border-slate-200' : 'bg-purple-50 border-purple-100'}`}>
                         <p className="text-[8px] font-black uppercase tracking-widest mb-2 text-slate-400">🎯 Your {round.label} picks</p>
-                        <div className="flex flex-wrap gap-1.5">
+                        <div className="flex flex-wrap gap-2 pt-3">
                           {myRoundPicks.map((t: any, pi: number) => {
                             const isCorrect = roundWinnerSet.has(t.id);
-                            const isWrong   = eliminatedIds.has(t.id);
+                            const isElim    = eliminatedIds.has(t.id);
                             return (
-                              <div key={pi} className={`flex items-center gap-1.5 px-2 py-1 rounded-lg border text-[9px] font-black ${
-                                isCorrect ? 'bg-emerald-100 border-emerald-300 text-emerald-800' :
-                                isWrong   ? 'bg-red-50 border-red-200 text-red-400 line-through opacity-60' :
-                                'bg-white border-purple-200 text-purple-800'
-                              }`}>
-                                {t?.c && <img src={`https://flagcdn.com/w40/${t.c}.png`} className="w-4 h-2.5 object-cover rounded flex-shrink-0" alt="" />}
-                                <span>{t?.n || t?.name || '?'}</span>
-                                {isCorrect && <span className="text-emerald-600 font-black">✓</span>}
+                              <div key={pi} className="relative flex flex-col items-center gap-0.5">
+                                {/* +pts badge on top for winners */}
+                                {isCorrect && (
+                                  <span className="absolute -top-2.5 left-1/2 -translate-x-1/2 bg-emerald-500 text-white text-[7px] font-black px-1.5 py-0.5 rounded-full z-10 whitespace-nowrap">
+                                    +{round.pts}
+                                  </span>
+                                )}
+                                <div className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border text-[9px] font-black transition-all ${
+                                  isCorrect ? 'bg-emerald-100 border-emerald-300 text-emerald-800' :
+                                  isElim    ? 'bg-slate-50 border-slate-200 text-slate-300' :
+                                  'bg-white border-purple-200 text-purple-800'
+                                }`}>
+                                  {t?.c && <img src={`https://flagcdn.com/w40/${t.c}.png`} className={`w-4 h-2.5 object-cover rounded flex-shrink-0 ${isElim ? 'opacity-30' : ''}`} alt="" />}
+                                  <span className={isElim ? 'opacity-40' : ''}>{t?.n || t?.name || '?'}</span>
+                                </div>
                               </div>
                             );
                           })}
                         </div>
                         {playedMatchIds.size > 0 && (
-                          <p className="text-[8px] font-bold mt-2 text-slate-400">
-                            {myRoundCorrect.length} correct so far · {round.ids.length - playedMatchIds.size} matches remaining
-                            {myRoundPicks.filter((t:any) => eliminatedIds.has(t.id)).length > 0 && (
-                              <span className="text-red-400 ml-1">· {myRoundPicks.filter((t:any) => eliminatedIds.has(t.id)).map((t:any) => t?.n).join(', ')} eliminated</span>
-                            )}
+                          <p className="text-[8px] font-bold mt-2.5 text-slate-400">
+                            {myRoundCorrect.length > 0
+                              ? <span className="text-emerald-600">+{myRoundCorrect.length * round.pts} pts earned so far</span>
+                              : <span>No points yet</span>
+                            }
+                            <span className="ml-1">· {round.ids.length - playedMatchIds.size} matches remaining</span>
                           </p>
                         )}
                       </div>
