@@ -263,18 +263,18 @@ function AdminPanel({
     const ub = u.bracketWinners || {};
 
     // Build sets of team IDs that officially won each round
-    const offR32  = new Set(Object.entries(bw).filter(([mid]) => { const m=parseInt(mid.substring(1)); return m>=1  && m<=16;  }).map(([,w]:any) => w?.id).filter(Boolean));
-    const offR16  = new Set(Object.entries(bw).filter(([mid]) => { const m=parseInt(mid.substring(1)); return m>=17 && m<=24;  }).map(([,w]:any) => w?.id).filter(Boolean));
-    const offQF   = new Set(Object.entries(bw).filter(([mid]) => { const m=parseInt(mid.substring(1)); return m>=25 && m<=28;  }).map(([,w]:any) => w?.id).filter(Boolean));
-    const offSF   = new Set(Object.entries(bw).filter(([mid]) => { const m=parseInt(mid.substring(1)); return m>=29 && m<=30;  }).map(([,w]:any) => w?.id).filter(Boolean));
+    const offR32  = new Set(Object.entries(bw).filter(([mid]) => { const m=parseInt(mid.substring(1)); return m>=73  && m<=88;  }).map(([,w]:any) => w?.id).filter(Boolean));
+    const offR16  = new Set(Object.entries(bw).filter(([mid]) => { const m=parseInt(mid.substring(1)); return m>=89  && m<=96;  }).map(([,w]:any) => w?.id).filter(Boolean));
+    const offQF   = new Set(Object.entries(bw).filter(([mid]) => { const m=parseInt(mid.substring(1)); return m>=97  && m<=100; }).map(([,w]:any) => w?.id).filter(Boolean));
+    const offSF   = new Set(Object.entries(bw).filter(([mid]) => { const m=parseInt(mid.substring(1)); return m>=101 && m<=102; }).map(([,w]:any) => w?.id).filter(Boolean));
     const off3rd  = bw['m103']?.id;
     const offFinal= bw['m104']?.id;
 
     // Build sets of team IDs the user picked to win each round
-    const myR32   = new Set(Object.entries(ub).filter(([mid]) => { const m=parseInt(mid.substring(1)); return m>=1  && m<=16;  }).map(([,w]:any) => w?.id).filter(Boolean));
-    const myR16   = new Set(Object.entries(ub).filter(([mid]) => { const m=parseInt(mid.substring(1)); return m>=17 && m<=24;  }).map(([,w]:any) => w?.id).filter(Boolean));
-    const myQF    = new Set(Object.entries(ub).filter(([mid]) => { const m=parseInt(mid.substring(1)); return m>=25 && m<=28;  }).map(([,w]:any) => w?.id).filter(Boolean));
-    const mySF    = new Set(Object.entries(ub).filter(([mid]) => { const m=parseInt(mid.substring(1)); return m>=29 && m<=30;  }).map(([,w]:any) => w?.id).filter(Boolean));
+    const myR32   = new Set(Object.entries(ub).filter(([mid]) => { const m=parseInt(mid.substring(1)); return m>=73  && m<=88;  }).map(([,w]:any) => w?.id).filter(Boolean));
+    const myR16   = new Set(Object.entries(ub).filter(([mid]) => { const m=parseInt(mid.substring(1)); return m>=89  && m<=96;  }).map(([,w]:any) => w?.id).filter(Boolean));
+    const myQF    = new Set(Object.entries(ub).filter(([mid]) => { const m=parseInt(mid.substring(1)); return m>=97  && m<=100; }).map(([,w]:any) => w?.id).filter(Boolean));
+    const mySF    = new Set(Object.entries(ub).filter(([mid]) => { const m=parseInt(mid.substring(1)); return m>=101 && m<=102; }).map(([,w]:any) => w?.id).filter(Boolean));
     const my3rd   = ub['m103']?.id;
     const myFinal = ub['m104']?.id;
 
