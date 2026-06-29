@@ -206,12 +206,33 @@ function MiniStandings() {
 function AdminPanel({
   onClose, toast
 }: { onClose: () => void; toast: ReturnType<typeof useToast> }) {
-  const [tab, setTab] = useState<'official' | 'submissions' | 'recalc'>('official');
+  const [tab, setTab] = useState<'official' | 'knockout' | 'submissions' | 'recalc'>('official');
   const [submissions, setSubmissions] = useState<any[]>([]);
   const [official, setOfficial] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [officialAwards, setOfficialAwards] = useState({ ball: '', boot: '', gloves: '', bootGoals: 0 });
   const [recalcDone, setRecalcDone] = useState(false);
+
+  // ── Knockout fixtures state ───────────────────────────────────────────────
+  // fixtures[mid] = { t1: TeamObj|null, t2: TeamObj|null, winner: TeamObj|null }
+  // t1Input/t2Input = raw text typed by admin for autocomplete
+  type FixtureEntry = { t1: any; t2: any; winner: any };
+  const [fixtures,      setFixtures]      = useState<Record<string, FixtureEntry>>({});
+  const [t1Inputs,      setT1Inputs]      = useState<Record<string, string>>({});
+  const [t2Inputs,      setT2Inputs]      = useState<Record<string, string>>({});
+  const [knockoutSaving, setKnockoutSaving] = useState(false);
+
+  // All 48 teams flat list for autocomplete
+  const ALL_TEAMS: any[] = Object.values(GROUPS_DATA).flatMap((g: any) => g.teams);
+
+  const KNOCKOUT_ROUNDS = [
+    { label: 'Round of 32',    ids: Array.from({length:16}, (_,i) => `m${i+73}`)  },
+    { label: 'Round of 16',    ids: Array.from({length:8},  (_,i) => `m${i+89}`)  },
+    { label: 'Quarter-Finals', ids: Array.from({length:4},  (_,i) => `m${i+97}`)  },
+    { label: 'Semi-Finals',    ids: Array.from({length:2},  (_,i) => `m${i+101}`) },
+    { label: '3rd Place',      ids: ['m103']                                        },
+    { label: 'Final',          ids: ['m104']                                        },
+  ];
 
   useEffect(() => {
     loadSubmissions();
@@ -238,7 +259,67 @@ function AdminPanel({
         gloves:    data.golden_gloves || '',
         bootGoals: data.boot_goals    || 0,
       });
+      // Hydrate knockout fixtures from saved bracketWinners + knockoutFixtures
+      const saved: Record<string, FixtureEntry> = data.bracket_data?.knockoutFixtures || {};
+      setFixtures(saved);
+      // Restore text inputs from saved team names
+      const t1i: Record<string,string> = {};
+      const t2i: Record<string,string> = {};
+      Object.entries(saved).forEach(([mid, fx]: any) => {
+        if (fx.t1) t1i[mid] = fx.t1.n || '';
+        if (fx.t2) t2i[mid] = fx.t2.n || '';
+      });
+      setT1Inputs(t1i);
+      setT2Inputs(t2i);
     }
+  };
+
+  // ── Save knockout fixtures + winners to Supabase ──────────────────────────
+  const saveKnockout = async () => {
+    setKnockoutSaving(true);
+    try {
+      const { data: existing } = await supabase
+        .from('official_results')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      const existingBD = existing?.bracket_data || {};
+
+      // Build bracketWinners from fixtures — winner is always a proper team object
+      // selected from the dropdown (t1 or t2), so id/n/c are always valid.
+      const bracketWinners: Record<string, any> = { ...(existingBD.bracketWinners || {}) };
+      Object.entries(fixtures).forEach(([mid, fx]: any) => {
+        if (fx.winner?.id) {
+          bracketWinners[mid] = { id: fx.winner.id, n: fx.winner.n, c: fx.winner.c };
+        }
+      });
+
+      const newBD = {
+        ...existingBD,
+        bracketWinners,
+        knockoutFixtures: fixtures,
+      };
+
+      if (existing) {
+        const { error } = await supabase
+          .from('official_results')
+          .update({ bracket_data: newBD, updated_at: new Date().toISOString() })
+          .eq('id', existing.id);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .from('official_results')
+          .insert([{ bracket_data: newBD }]);
+        if (error) throw error;
+      }
+      toast.success('Knockout fixtures & results saved! ✅');
+      await loadOfficial();
+    } catch (e: any) {
+      toast.error(e?.message || 'Failed to save knockout data.');
+    }
+    setKnockoutSaving(false);
   };
 
   // ── Compute partial scores for staged leaderboard ──────────────────────────
@@ -263,6 +344,7 @@ function AdminPanel({
     const ub = u.bracketWinners || {};
 
     // Build sets of team IDs that officially won each round
+    // R32: m73–m88 (16 matches), R16: m89–m96 (8), QF: m97–m100 (4), SF: m101–m102 (2)
     const offR32  = new Set(Object.entries(bw).filter(([mid]) => { const m=parseInt(mid.substring(1)); return m>=73  && m<=88;  }).map(([,w]:any) => w?.id).filter(Boolean));
     const offR16  = new Set(Object.entries(bw).filter(([mid]) => { const m=parseInt(mid.substring(1)); return m>=89  && m<=96;  }).map(([,w]:any) => w?.id).filter(Boolean));
     const offQF   = new Set(Object.entries(bw).filter(([mid]) => { const m=parseInt(mid.substring(1)); return m>=97  && m<=100; }).map(([,w]:any) => w?.id).filter(Boolean));
@@ -368,11 +450,12 @@ function AdminPanel({
           </button>
         </div>
 
-        <div className="flex gap-2 p-4 border-b border-slate-800">
+        <div className="flex gap-2 p-4 border-b border-slate-800 flex-wrap">
           {[
-            { id: 'official', label: 'Official Results', icon: Crown },
+            { id: 'official',    label: 'Awards',                  icon: Crown     },
+            { id: 'knockout',    label: 'Knockout Fixtures',        icon: Swords    },
             { id: 'submissions', label: `Submissions (${submissions.length})`, icon: Users },
-            { id: 'recalc', label: 'Recalculate', icon: RefreshCw },
+            { id: 'recalc',      label: 'Recalculate',              icon: RefreshCw },
           ].map(({ id, label, icon: Icon }) => (
             <button
               key={id}
@@ -433,6 +516,229 @@ function AdminPanel({
                   </pre>
                 </div>
               )}
+            </div>
+          )}
+
+          {tab === 'knockout' && (
+            <div className="space-y-6">
+              {/* Header */}
+              <div className="bg-slate-900 rounded-2xl p-5 border border-slate-800">
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <h3 className="text-white font-black flex items-center gap-2">
+                      <Swords size={16} className="text-indigo-400" /> Knockout Fixtures & Results
+                    </h3>
+                    <p className="text-slate-400 text-xs mt-1">
+                      Step 1: Type both team names for each fixture.<br/>
+                      Step 2: After the match, select the winner from the dropdown.<br/>
+                      Step 3: Hit Save, then Recalculate scores.
+                    </p>
+                  </div>
+                  <button
+                    onClick={saveKnockout}
+                    disabled={knockoutSaving}
+                    className="flex-shrink-0 bg-emerald-600 text-white px-5 py-2.5 rounded-xl font-black text-xs hover:bg-emerald-500 transition disabled:opacity-50 flex items-center gap-2"
+                  >
+                    <Save size={13} className={knockoutSaving ? 'animate-spin' : ''} />
+                    {knockoutSaving ? 'Saving...' : 'Save All'}
+                  </button>
+                </div>
+              </div>
+
+              {/* Rounds */}
+              {KNOCKOUT_ROUNDS.map(round => (
+                <div key={round.label} className="bg-slate-900 rounded-2xl border border-slate-800 overflow-hidden">
+                  <div className="flex items-center justify-between px-5 py-3 border-b border-slate-800 bg-slate-800/50">
+                    <h4 className="text-white font-black text-sm">{round.label}</h4>
+                    <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">
+                      {round.ids.length} match{round.ids.length > 1 ? 'es' : ''}
+                    </span>
+                  </div>
+                  <div className="divide-y divide-slate-800">
+                    {round.ids.map((mid, idx) => {
+                      const fx       = fixtures[mid] || { t1: null, t2: null, winner: null };
+                      const t1Input  = t1Inputs[mid]  || '';
+                      const t2Input  = t2Inputs[mid]  || '';
+                      const t1Team   = fx.t1;
+                      const t2Team   = fx.t2;
+                      const winner   = fx.winner;
+
+                      // Autocomplete suggestions while typing
+                      const t1Suggestions = t1Input.length >= 2 && !t1Team
+                        ? ALL_TEAMS.filter((t: any) => t.n.toLowerCase().includes(t1Input.toLowerCase())).slice(0, 4)
+                        : [];
+                      const t2Suggestions = t2Input.length >= 2 && !t2Team
+                        ? ALL_TEAMS.filter((t: any) => t.n.toLowerCase().includes(t2Input.toLowerCase())).slice(0, 4)
+                        : [];
+
+                      const fixtureSet = t1Team && t2Team;
+                      const isComplete = fixtureSet && winner;
+                      const isPartial  = (t1Team || t2Team) && !isComplete;
+
+                      return (
+                        <div key={mid} className={`px-5 py-4 ${isComplete ? 'bg-emerald-950/20' : isPartial ? 'bg-amber-950/10' : ''}`}>
+                          {/* Match header */}
+                          <div className="flex items-center gap-2 mb-3">
+                            <span className="text-[9px] font-black text-slate-600 uppercase tracking-widest w-10">{mid.toUpperCase()}</span>
+                            <span className="text-[9px] font-black text-slate-600">Match {idx + 1}</span>
+                            {isComplete && (
+                              <span className="text-[8px] font-black text-emerald-400 bg-emerald-950 border border-emerald-800 px-2 py-0.5 rounded-full flex items-center gap-1">
+                                <Check size={8} /> Done
+                              </span>
+                            )}
+                            {isPartial && !isComplete && (
+                              <span className="text-[8px] font-black text-amber-400 bg-amber-950 border border-amber-800 px-2 py-0.5 rounded-full">
+                                Incomplete
+                              </span>
+                            )}
+                          </div>
+
+                          <div className="grid grid-cols-[1fr_auto_1fr] gap-3 items-start">
+                            {/* ── Team 1 ── */}
+                            <div className="relative">
+                              <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest block mb-1">Team 1</label>
+                              {t1Team ? (
+                                <div className="flex items-center justify-between bg-slate-800 border border-slate-600 rounded-xl px-3 py-2">
+                                  <span className="text-white font-black text-xs flex items-center gap-2">
+                                    <img src={`https://flagcdn.com/w20/${t1Team.c}.png`} className="w-4 h-3 object-cover rounded-sm" onError={(e:any)=>e.target.style.display='none'} />
+                                    {t1Team.n}
+                                  </span>
+                                  <button
+                                    onClick={() => {
+                                      setFixtures(p => ({ ...p, [mid]: { ...fx, t1: null, winner: null } }));
+                                      setT1Inputs(p => ({ ...p, [mid]: '' }));
+                                    }}
+                                    className="text-slate-500 hover:text-red-400 transition ml-2"
+                                  ><X size={11} /></button>
+                                </div>
+                              ) : (
+                                <>
+                                  <input
+                                    type="text"
+                                    className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-white font-bold text-xs outline-none focus:border-indigo-500 transition placeholder-slate-600"
+                                    placeholder="Type team name..."
+                                    value={t1Input}
+                                    onChange={e => setT1Inputs(p => ({ ...p, [mid]: e.target.value }))}
+                                  />
+                                  {t1Suggestions.length > 0 && (
+                                    <div className="absolute top-full left-0 right-0 z-50 mt-1 bg-slate-800 border border-slate-600 rounded-xl overflow-hidden shadow-xl">
+                                      {t1Suggestions.map((t: any) => (
+                                        <button
+                                          key={t.id}
+                                          className="w-full text-left px-3 py-2 text-xs text-white font-bold hover:bg-slate-700 transition flex items-center gap-2"
+                                          onClick={() => {
+                                            setFixtures(p => ({ ...p, [mid]: { ...((p[mid]) || {t1:null,t2:null,winner:null}), t1: t } }));
+                                            setT1Inputs(p => ({ ...p, [mid]: t.n }));
+                                          }}
+                                        >
+                                          <img src={`https://flagcdn.com/w20/${t.c}.png`} className="w-4 h-3 object-cover rounded-sm" onError={(e:any)=>e.target.style.display='none'} />
+                                          {t.n}
+                                        </button>
+                                      ))}
+                                    </div>
+                                  )}
+                                </>
+                              )}
+                            </div>
+
+                            {/* ── VS + Winner ── */}
+                            <div className="flex flex-col items-center gap-1 pt-5">
+                              <span className="text-slate-600 font-black text-[10px]">VS</span>
+                            </div>
+
+                            {/* ── Team 2 ── */}
+                            <div className="relative">
+                              <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest block mb-1">Team 2</label>
+                              {t2Team ? (
+                                <div className="flex items-center justify-between bg-slate-800 border border-slate-600 rounded-xl px-3 py-2">
+                                  <span className="text-white font-black text-xs flex items-center gap-2">
+                                    <img src={`https://flagcdn.com/w20/${t2Team.c}.png`} className="w-4 h-3 object-cover rounded-sm" onError={(e:any)=>e.target.style.display='none'} />
+                                    {t2Team.n}
+                                  </span>
+                                  <button
+                                    onClick={() => {
+                                      setFixtures(p => ({ ...p, [mid]: { ...fx, t2: null, winner: null } }));
+                                      setT2Inputs(p => ({ ...p, [mid]: '' }));
+                                    }}
+                                    className="text-slate-500 hover:text-red-400 transition ml-2"
+                                  ><X size={11} /></button>
+                                </div>
+                              ) : (
+                                <>
+                                  <input
+                                    type="text"
+                                    className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-white font-bold text-xs outline-none focus:border-indigo-500 transition placeholder-slate-600"
+                                    placeholder="Type team name..."
+                                    value={t2Input}
+                                    onChange={e => setT2Inputs(p => ({ ...p, [mid]: e.target.value }))}
+                                  />
+                                  {t2Suggestions.length > 0 && (
+                                    <div className="absolute top-full left-0 right-0 z-50 mt-1 bg-slate-800 border border-slate-600 rounded-xl overflow-hidden shadow-xl">
+                                      {t2Suggestions.map((t: any) => (
+                                        <button
+                                          key={t.id}
+                                          className="w-full text-left px-3 py-2 text-xs text-white font-bold hover:bg-slate-700 transition flex items-center gap-2"
+                                          onClick={() => {
+                                            setFixtures(p => ({ ...p, [mid]: { ...((p[mid]) || {t1:null,t2:null,winner:null}), t2: t } }));
+                                            setT2Inputs(p => ({ ...p, [mid]: t.n }));
+                                          }}
+                                        >
+                                          <img src={`https://flagcdn.com/w20/${t.c}.png`} className="w-4 h-3 object-cover rounded-sm" onError={(e:any)=>e.target.style.display='none'} />
+                                          {t.n}
+                                        </button>
+                                      ))}
+                                    </div>
+                                  )}
+                                </>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* ── Winner dropdown — only shown once both teams are set ── */}
+                          {fixtureSet && (
+                            <div className="mt-3">
+                              <label className="text-[9px] font-black text-emerald-500 uppercase tracking-widest block mb-1">Winner ✓</label>
+                              <div className="grid grid-cols-2 gap-2">
+                                {[t1Team, t2Team].map((team: any) => {
+                                  const isWinner = winner?.id === team.id;
+                                  return (
+                                    <button
+                                      key={team.id}
+                                      onClick={() => setFixtures(p => ({
+                                        ...p,
+                                        [mid]: { ...((p[mid]) || {t1:null,t2:null,winner:null}), winner: isWinner ? null : team }
+                                      }))}
+                                      className={`flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl font-black text-xs transition border-2 ${
+                                        isWinner
+                                          ? 'bg-emerald-600 border-emerald-400 text-white'
+                                          : 'bg-slate-800 border-slate-700 text-slate-300 hover:border-emerald-700 hover:text-white'
+                                      }`}
+                                    >
+                                      <img src={`https://flagcdn.com/w20/${team.c}.png`} className="w-4 h-3 object-cover rounded-sm" onError={(e:any)=>e.target.style.display='none'} />
+                                      {team.n}
+                                      {isWinner && <Check size={11} />}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+
+              {/* Bottom save */}
+              <button
+                onClick={saveKnockout}
+                disabled={knockoutSaving}
+                className="w-full bg-emerald-600 text-white py-4 rounded-2xl font-black hover:bg-emerald-500 transition disabled:opacity-50 flex items-center justify-center gap-3"
+              >
+                <Save size={16} className={knockoutSaving ? 'animate-spin' : ''} />
+                {knockoutSaving ? 'Saving...' : 'Save Knockout Fixtures & Results'}
+              </button>
             </div>
           )}
 
@@ -682,7 +988,7 @@ export default function HerdArenaFinalMaster() {
     BRACKET_MAPPING.forEach((m: any) => {
       const winner = bracketWinners[m.id];
       const mNum = parseInt(m.id.substring(1));
-      const round = mNum <= 16 ? 'R32' : mNum <= 24 ? 'R16' : mNum <= 28 ? 'QF' : mNum <= 30 ? 'SF' : mNum === 103 ? '3P' : 'F';
+      const round = (mNum >= 73 && mNum <= 88) ? 'R32' : (mNum >= 89 && mNum <= 96) ? 'R16' : (mNum >= 97 && mNum <= 100) ? 'QF' : (mNum >= 101 && mNum <= 102) ? 'SF' : mNum === 103 ? '3P' : 'F';
       rows.push([roundLabels[round] || round, m.id.toUpperCase(), winner?.n || '(not picked)']);
     });
     rows.push([]);
@@ -1777,12 +2083,12 @@ function ResultsView({ bracketName, getTeam }: { bracketName: string; getTeam: (
 
             const getRound = (mid: string) => {
               const n = parseInt(mid.substring(1));
-              if (n <= 16)   return { label: 'Round of 32',    order: 0, pts: 5  };
-              if (n <= 24)   return { label: 'Round of 16',    order: 1, pts: 5  };
-              if (n <= 28)   return { label: 'Quarter-Finals', order: 2, pts: 5  };
-              if (n <= 30)   return { label: 'Semi-Finals',    order: 3, pts: 5  };
-              if (n === 103) return { label: '3rd Place',      order: 4, pts: 10 };
-              if (n === 104) return { label: 'Final',          order: 5, pts: 20 };
+              if (n >= 73  && n <= 88)  return { label: 'Round of 32',    order: 0, pts: 5  };
+              if (n >= 89  && n <= 96)  return { label: 'Round of 16',    order: 1, pts: 5  };
+              if (n >= 97  && n <= 100) return { label: 'Quarter-Finals', order: 2, pts: 5  };
+              if (n >= 101 && n <= 102) return { label: 'Semi-Finals',    order: 3, pts: 5  };
+              if (n === 103)            return { label: '3rd Place',      order: 4, pts: 10 };
+              if (n === 104)            return { label: 'Final',          order: 5, pts: 20 };
               return { label: 'Other', order: 6, pts: 5 };
             };
 
@@ -3204,17 +3510,18 @@ function LiveKnockoutView({ bracketName, getTeam }: { bracketName: string; getTe
   );
   // Knockout score — team-based: earn points if your picked team won that round,
   // no matter which fixture slot they were in.
-  const offR32set  = new Set(Object.entries(offBracket).filter(([mid]) => { const m=parseInt(mid.substring(1)); return m>=1  && m<=16;  }).map(([,w]:any) => w?.id).filter(Boolean));
-  const offR16set  = new Set(Object.entries(offBracket).filter(([mid]) => { const m=parseInt(mid.substring(1)); return m>=17 && m<=24;  }).map(([,w]:any) => w?.id).filter(Boolean));
-  const offQFset   = new Set(Object.entries(offBracket).filter(([mid]) => { const m=parseInt(mid.substring(1)); return m>=25 && m<=28;  }).map(([,w]:any) => w?.id).filter(Boolean));
-  const offSFset   = new Set(Object.entries(offBracket).filter(([mid]) => { const m=parseInt(mid.substring(1)); return m>=29 && m<=30;  }).map(([,w]:any) => w?.id).filter(Boolean));
+  // R32: m73–m88, R16: m89–m96, QF: m97–m100, SF: m101–m102
+  const offR32set  = new Set(Object.entries(offBracket).filter(([mid]) => { const m=parseInt(mid.substring(1)); return m>=73  && m<=88;  }).map(([,w]:any) => w?.id).filter(Boolean));
+  const offR16set  = new Set(Object.entries(offBracket).filter(([mid]) => { const m=parseInt(mid.substring(1)); return m>=89  && m<=96;  }).map(([,w]:any) => w?.id).filter(Boolean));
+  const offQFset   = new Set(Object.entries(offBracket).filter(([mid]) => { const m=parseInt(mid.substring(1)); return m>=97  && m<=100; }).map(([,w]:any) => w?.id).filter(Boolean));
+  const offSFset   = new Set(Object.entries(offBracket).filter(([mid]) => { const m=parseInt(mid.substring(1)); return m>=101 && m<=102; }).map(([,w]:any) => w?.id).filter(Boolean));
   const off3rdId   = offBracket['m103']?.id;
   const offFinalId = offBracket['m104']?.id;
 
-  const myR32set   = new Set(Object.entries(myBracket).filter(([mid]) => { const m=parseInt(mid.substring(1)); return m>=1  && m<=16;  }).map(([,w]:any) => w?.id).filter(Boolean));
-  const myR16set   = new Set(Object.entries(myBracket).filter(([mid]) => { const m=parseInt(mid.substring(1)); return m>=17 && m<=24;  }).map(([,w]:any) => w?.id).filter(Boolean));
-  const myQFset    = new Set(Object.entries(myBracket).filter(([mid]) => { const m=parseInt(mid.substring(1)); return m>=25 && m<=28;  }).map(([,w]:any) => w?.id).filter(Boolean));
-  const mySFset    = new Set(Object.entries(myBracket).filter(([mid]) => { const m=parseInt(mid.substring(1)); return m>=29 && m<=30;  }).map(([,w]:any) => w?.id).filter(Boolean));
+  const myR32set   = new Set(Object.entries(myBracket).filter(([mid]) => { const m=parseInt(mid.substring(1)); return m>=73  && m<=88;  }).map(([,w]:any) => w?.id).filter(Boolean));
+  const myR16set   = new Set(Object.entries(myBracket).filter(([mid]) => { const m=parseInt(mid.substring(1)); return m>=89  && m<=96;  }).map(([,w]:any) => w?.id).filter(Boolean));
+  const myQFset    = new Set(Object.entries(myBracket).filter(([mid]) => { const m=parseInt(mid.substring(1)); return m>=97  && m<=100; }).map(([,w]:any) => w?.id).filter(Boolean));
+  const mySFset    = new Set(Object.entries(myBracket).filter(([mid]) => { const m=parseInt(mid.substring(1)); return m>=101 && m<=102; }).map(([,w]:any) => w?.id).filter(Boolean));
   const my3rdId    = myBracket['m103']?.id;
   const myFinalId  = myBracket['m104']?.id;
 
@@ -3235,10 +3542,10 @@ function LiveKnockoutView({ bracketName, getTeam }: { bracketName: string; getTe
 
   // ── Round definitions ──────────────────────────────────────────────────────
   const ROUNDS = [
-    { key: 'r32', label: 'Round of 32',    pts: 5,  ids: Array.from({length:16}, (_,i) => `m${i+1}`)   },
-    { key: 'r16', label: 'Round of 16',    pts: 5,  ids: Array.from({length:8},  (_,i) => `m${i+17}`)  },
-    { key: 'qf',  label: 'Quarter-Finals', pts: 5,  ids: Array.from({length:4},  (_,i) => `m${i+25}`)  },
-    { key: 'sf',  label: 'Semi-Finals',    pts: 5,  ids: Array.from({length:2},  (_,i) => `m${i+29}`)  },
+    { key: 'r32', label: 'Round of 32',    pts: 5,  ids: Array.from({length:16}, (_,i) => `m${i+73}`)  },
+    { key: 'r16', label: 'Round of 16',    pts: 5,  ids: Array.from({length:8},  (_,i) => `m${i+89}`)  },
+    { key: 'qf',  label: 'Quarter-Finals', pts: 5,  ids: Array.from({length:4},  (_,i) => `m${i+97}`)  },
+    { key: 'sf',  label: 'Semi-Finals',    pts: 5,  ids: Array.from({length:2},  (_,i) => `m${i+101}`) },
     { key: '3p',  label: '3rd Place',      pts: 10, ids: ['m103']                                       },
     { key: 'f',   label: 'The Final 🏆',   pts: 20, ids: ['m104']                                       },
   ];
