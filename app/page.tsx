@@ -3800,6 +3800,21 @@ function LiveKnockoutView({ bracketName, getTeam }: { bracketName: string; getTe
               const isFinal = round.key === 'f';
               const is3rd   = round.key === '3p';
 
+              // Team-based: a team is "won" if it won ANY match in this round
+              const roundWinnerSet = new Set(
+                Object.entries(offBracket)
+                  .filter(([mid2]) => round.ids.includes(mid2))
+                  .map(([,w]:any) => w?.id).filter(Boolean)
+              );
+
+              // Your 16/8/4/2/1 picks for this round — deduped by team id, shown ONCE at the top
+              const pickMap = new Map<string, any>();
+              round.ids.forEach(mid => {
+                const p = myBracket[mid];
+                if (p?.id && !pickMap.has(p.id)) pickMap.set(p.id, p);
+              });
+              const myRoundPicks = Array.from(pickMap.values());
+
               return (
                 <div key={round.key} className={`rounded-[2rem] border-2 overflow-hidden shadow-sm ${isFinal ? 'border-amber-300' : is3rd ? 'border-orange-200' : 'border-slate-200'}`}>
                   {/* Round header */}
@@ -3812,28 +3827,49 @@ function LiveKnockoutView({ bracketName, getTeam }: { bracketName: string; getTe
                     {!hasAnyResult && <span className="text-[9px] text-slate-400 font-bold italic">upcoming</span>}
                   </div>
 
-                  {/* Match rows */}
+                  {/* ── Your picks for this round — shown ONCE at the top, team-based, not tied to any fixture slot ── */}
+                  <div className="px-5 py-3.5 bg-purple-50/50 border-b border-purple-100">
+                    <p className="text-[8px] font-black text-purple-700 uppercase tracking-widest mb-2">🎯 Your {myRoundPicks.length} Pick{myRoundPicks.length === 1 ? '' : 's'} For This Round</p>
+                    {myRoundPicks.length === 0 ? (
+                      <p className="text-[10px] text-slate-300 italic">No picks made for this round</p>
+                    ) : (
+                      <div className="flex flex-wrap gap-1.5">
+                        {myRoundPicks.map(pick => {
+                          const t = getTeam(pick.id) || pick;
+                          const won  = hasAnyResult && roundWinnerSet.has(pick.id);
+                          const lost = hasAnyResult && !roundWinnerSet.has(pick.id);
+                          return (
+                            <div key={pick.id} className={`flex items-center gap-1.5 pl-2 pr-2.5 py-1.5 rounded-xl border ${
+                              won  ? 'bg-emerald-100 border-emerald-300' :
+                              lost ? 'bg-red-50 border-red-200' :
+                              'bg-white border-purple-200'
+                            }`}>
+                              {t?.c && <img src={`https://flagcdn.com/w40/${t.c}.png`} className="w-4 h-2.5 object-cover rounded flex-shrink-0" alt="" />}
+                              <span className={`text-[10px] font-black truncate max-w-[90px] ${
+                                won  ? 'text-emerald-700' :
+                                lost ? 'text-red-500 line-through' :
+                                'text-purple-700'
+                              }`}>{t?.n || pick?.n}</span>
+                              {won  && <span className="bg-emerald-500 text-white text-[8px] font-black px-1.5 py-0.5 rounded-md flex-shrink-0">+{round.pts}</span>}
+                              {lost && <span className="text-red-400 text-[8px] font-black flex-shrink-0">✗</span>}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Match rows — actual fixtures, winner badge only, no mismatched pick pairing */}
                   <div className="divide-y divide-slate-50 bg-white">
                     {round.matches.map((m: any) => {
                       const t1 = resolveOfficial(m.t1);
                       const t2 = resolveOfficial(m.t2);
                       const winner  = offBracket[m.id];
-                      const myPick  = myBracket[m.id];
                       const isPlayed = !!winner;
                       const winnerT  = winner ? (getTeam(winner.id) || winner) : null;
-                      const myT      = myPick  ? (getTeam(myPick.id)  || myPick)  : null;
-                      // Team-based: correct if my picked team won ANY match in this round
-                      const roundWinnerSet = new Set(
-                        Object.entries(offBracket)
-                          .filter(([mid2]) => round.ids.includes(mid2))
-                          .map(([,w]:any) => w?.id).filter(Boolean)
-                      );
-                      const correct  = isPlayed && !!myPick?.id && roundWinnerSet.has(myPick.id);
-                      const wrong    = isPlayed && !!myPick?.id && !roundWinnerSet.has(myPick.id);
 
                       return (
-                        <div key={m.id} className={`px-5 py-3 flex items-center gap-3 ${correct ? 'bg-emerald-50' : wrong ? 'bg-red-50/40' : ''}`}>
-                          {/* Match teams — exactly like the Bracket tab MatchBox */}
+                        <div key={m.id} className="px-5 py-3 flex items-center gap-3">
                           <div className="flex-1 min-w-0">
                             {/* Team 1 */}
                             <div className={`flex items-center gap-2 py-1 ${isPlayed && winnerT?.id === t1?.id ? 'opacity-100' : isPlayed ? 'opacity-30' : ''}`}>
@@ -3859,31 +3895,6 @@ function LiveKnockoutView({ bracketName, getTeam }: { bracketName: string; getTe
                               {isPlayed && winnerT?.id === t2?.id && <Check size={12} strokeWidth={3} className="text-emerald-500 flex-shrink-0" />}
                               {isPlayed && winnerT?.id === t2?.id && <span className="bg-emerald-500 text-white text-[8px] font-black px-1.5 py-0.5 rounded-md flex-shrink-0">+{round.pts}</span>}
                             </div>
-                          </div>
-
-                          {/* Your pick — shown as a pill on the right */}
-                          <div className="flex-shrink-0 flex flex-col items-end gap-1.5 min-w-[90px]">
-                            {myT ? (
-                              <>
-                                <div className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border ${
-                                  correct ? 'bg-emerald-100 border-emerald-300' :
-                                  wrong   ? 'bg-red-50 border-red-200' :
-                                  'bg-purple-50 border-purple-200'
-                                }`}>
-                                  {myT?.c && <img src={`https://flagcdn.com/w40/${myT.c}.png`} className="w-4 h-2.5 object-cover rounded flex-shrink-0" alt="" />}
-                                  <span className={`text-[9px] font-black truncate max-w-[60px] ${
-                                    correct ? 'text-emerald-700' :
-                                    wrong   ? 'text-red-500 line-through' :
-                                    'text-purple-700'
-                                  }`}>{myT?.n || myPick?.n}</span>
-                                </div>
-                                {correct  && <span className="bg-emerald-500 text-white text-[8px] font-black px-2 py-0.5 rounded-lg self-end">✓ +{round.pts} pts</span>}
-                                {wrong    && <span className="bg-red-400 text-white text-[8px] font-black px-2 py-0.5 rounded-lg self-end">✗ eliminated</span>}
-                                {!isPlayed && <span className="text-[8px] text-purple-500 font-black self-end">🎯 your pick</span>}
-                              </>
-                            ) : (
-                              <span className="text-[8px] text-slate-300 italic px-2">no pick</span>
-                            )}
                           </div>
                         </div>
                       );
