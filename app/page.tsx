@@ -3844,6 +3844,7 @@ function LiveKnockoutView({ bracketName, getTeam }: { bracketName: string; getTe
                                 {t1?.n || t1?.placeholder || 'TBD'}
                               </span>
                               {isPlayed && winnerT?.id === t1?.id && <Check size={12} strokeWidth={3} className="text-emerald-500 flex-shrink-0" />}
+                              {isPlayed && winnerT?.id === t1?.id && <span className="bg-emerald-500 text-white text-[8px] font-black px-1.5 py-0.5 rounded-md flex-shrink-0">+{round.pts}</span>}
                             </div>
                             {/* Divider */}
                             <div className="border-t border-slate-50 my-0.5" />
@@ -3856,6 +3857,7 @@ function LiveKnockoutView({ bracketName, getTeam }: { bracketName: string; getTe
                                 {t2?.n || t2?.placeholder || 'TBD'}
                               </span>
                               {isPlayed && winnerT?.id === t2?.id && <Check size={12} strokeWidth={3} className="text-emerald-500 flex-shrink-0" />}
+                              {isPlayed && winnerT?.id === t2?.id && <span className="bg-emerald-500 text-white text-[8px] font-black px-1.5 py-0.5 rounded-md flex-shrink-0">+{round.pts}</span>}
                             </div>
                           </div>
 
