@@ -3806,6 +3806,16 @@ function LiveKnockoutView({ bracketName, getTeam }: { bracketName: string; getTe
                   .filter(([mid2]) => round.ids.includes(mid2))
                   .map(([,w]:any) => w?.id).filter(Boolean)
               );
+              // A team is only "resolved" (played) if its own fixture in this round has a result —
+              // NOT just because some other fixture in the round finished.
+              const resolvedTeamSet = new Set<string>();
+              round.matches.forEach((m: any) => {
+                if (!offBracket[m.id]) return; // this specific fixture hasn't been played
+                const rt1 = resolveOfficial(m.t1);
+                const rt2 = resolveOfficial(m.t2);
+                if (rt1?.id) resolvedTeamSet.add(rt1.id);
+                if (rt2?.id) resolvedTeamSet.add(rt2.id);
+              });
 
               // Your 16/8/4/2/1 picks for this round — deduped by team id, shown ONCE at the top
               const pickMap = new Map<string, any>();
@@ -3836,8 +3846,8 @@ function LiveKnockoutView({ bracketName, getTeam }: { bracketName: string; getTe
                       <div className="flex flex-wrap gap-1.5">
                         {myRoundPicks.map(pick => {
                           const t = getTeam(pick.id) || pick;
-                          const won  = hasAnyResult && roundWinnerSet.has(pick.id);
-                          const lost = hasAnyResult && !roundWinnerSet.has(pick.id);
+                          const won  = roundWinnerSet.has(pick.id);
+                          const lost = resolvedTeamSet.has(pick.id) && !roundWinnerSet.has(pick.id);
                           return (
                             <div key={pick.id} className={`flex items-center gap-1.5 pl-2 pr-2.5 py-1.5 rounded-xl border ${
                               won  ? 'bg-emerald-100 border-emerald-300' :
