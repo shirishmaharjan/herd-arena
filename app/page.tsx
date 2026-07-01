@@ -1747,25 +1747,24 @@ export default function HerdArenaFinalMaster() {
               {/* ── STANDINGS HEADER BANNER ── */}
               <StandingsBanner />
 
-              {/* ── STAGE 1 ─────────────────────────────────────────────── */}
-              <div className="rounded-[2.5rem] overflow-hidden border border-slate-200 shadow-xl">
-                {/* Stage header */}
-                <div className="bg-blue-600 px-8 py-6 flex items-center justify-between">
+              {/* ── STAGE 3 / FINAL ─────────────────────────────────────── */}
+              <div className="rounded-[2.5rem] overflow-hidden border border-amber-200 shadow-xl">
+                <div className="bg-slate-950 px-8 py-6 flex items-center justify-between">
                   <div className="flex items-center gap-4">
-                    <div className="bg-white/20 p-3 rounded-2xl"><Target size={22} className="text-white" /></div>
+                    <div className="bg-amber-400/20 p-3 rounded-2xl"><Trophy size={22} className="text-amber-400" /></div>
                     <div>
-                      <p className="text-[9px] font-black text-blue-200 uppercase tracking-widest">Stage 1</p>
-                      <h2 className="text-2xl font-black text-white italic tracking-tight">Group Stage</h2>
+                      <p className="text-[9px] font-black text-amber-400/70 uppercase tracking-widest">Stage 3</p>
+                      <h2 className="text-2xl font-black text-white italic tracking-tight">🏆 Final Championship</h2>
                     </div>
                   </div>
                   <div className="text-right">
-                    <p className="text-[9px] font-black text-blue-200 uppercase tracking-widest">Max Available</p>
-                    <p className="text-3xl font-black text-white tabular-nums">72 pts</p>
+                    <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Grand Total Max</p>
+                    <p className="text-3xl font-black text-amber-400 tabular-nums">267 pts</p>
                   </div>
                 </div>
                 <div className="bg-white p-6 md:p-8">
-                  <PointsBreakdownCard stage="group" />
-                  <LeaderboardSection scoreField="group_points" label="group stage" showWinner winnerLabel="Stage 1 Leader" maxStagePts={72} />
+                  <PointsBreakdownCard stage="final" />
+                  <LeaderboardSection scoreField="points" label="tournament" isFinal showWinner winnerLabel="Overall Champion 🏆" maxStagePts={267} />
                 </div>
               </div>
 
@@ -1790,24 +1789,25 @@ export default function HerdArenaFinalMaster() {
                 </div>
               </div>
 
-              {/* ── STAGE 3 / FINAL ─────────────────────────────────────── */}
-              <div className="rounded-[2.5rem] overflow-hidden border border-amber-200 shadow-xl">
-                <div className="bg-slate-950 px-8 py-6 flex items-center justify-between">
+              {/* ── STAGE 1 ─────────────────────────────────────────────── */}
+              <div className="rounded-[2.5rem] overflow-hidden border border-slate-200 shadow-xl">
+                {/* Stage header */}
+                <div className="bg-blue-600 px-8 py-6 flex items-center justify-between">
                   <div className="flex items-center gap-4">
-                    <div className="bg-amber-400/20 p-3 rounded-2xl"><Trophy size={22} className="text-amber-400" /></div>
+                    <div className="bg-white/20 p-3 rounded-2xl"><Target size={22} className="text-white" /></div>
                     <div>
-                      <p className="text-[9px] font-black text-amber-400/70 uppercase tracking-widest">Stage 3</p>
-                      <h2 className="text-2xl font-black text-white italic tracking-tight">🏆 Final Championship</h2>
+                      <p className="text-[9px] font-black text-blue-200 uppercase tracking-widest">Stage 1</p>
+                      <h2 className="text-2xl font-black text-white italic tracking-tight">Group Stage</h2>
                     </div>
                   </div>
                   <div className="text-right">
-                    <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Grand Total Max</p>
-                    <p className="text-3xl font-black text-amber-400 tabular-nums">267 pts</p>
+                    <p className="text-[9px] font-black text-blue-200 uppercase tracking-widest">Max Available</p>
+                    <p className="text-3xl font-black text-white tabular-nums">72 pts</p>
                   </div>
                 </div>
                 <div className="bg-white p-6 md:p-8">
-                  <PointsBreakdownCard stage="final" />
-                  <LeaderboardSection scoreField="points" label="tournament" isFinal showWinner winnerLabel="Overall Champion 🏆" maxStagePts={267} />
+                  <PointsBreakdownCard stage="group" />
+                  <LeaderboardSection scoreField="group_points" label="group stage" showWinner winnerLabel="Stage 1 Leader" maxStagePts={72} />
                 </div>
               </div>
 
@@ -3485,7 +3485,7 @@ function LiveKnockoutView({ bracketName, getTeam }: { bracketName: string; getTe
   const [official, setOfficial] = useState<any>(null);
   const [mySub,    setMySub]    = useState<any>(null);
   const [loading,  setLoading]  = useState(true);
-  const [section,  setSection]  = useState<'groups' | 'knockout' | 'awards'>('groups');
+  const [section,  setSection]  = useState<'groups' | 'knockout' | 'awards'>('knockout');
 
   useEffect(() => {
     const load = async () => {
@@ -3562,8 +3562,8 @@ function LiveKnockoutView({ bracketName, getTeam }: { bracketName: string; getTe
   ];
 
   const tabs = [
-    { id: 'groups',   label: 'Groups',   available: hasGroups,   icon: Target },
     { id: 'knockout', label: 'Knockout', available: hasKnockout, icon: Zap    },
+    { id: 'groups',   label: 'Groups',   available: hasGroups,   icon: Target },
     { id: 'awards',   label: 'Awards',   available: hasAwards,   icon: Star   },
   ] as const;
 
@@ -4120,6 +4120,11 @@ function LiveTracker({ bracketName, isAdmin, getTeam, toast }: {
 
   return (
     <div className="max-w-6xl mx-auto space-y-8">
+
+      {/* ── Score Breakdown (Knockout-first) — kept at the top since the knockout
+          stage is underway and is what everyone's tracking right now ── */}
+      <LiveKnockoutView bracketName={bracketName} getTeam={getTeam} />
+
       <div className="bg-slate-950 rounded-[3rem] p-8 md:p-10 text-white shadow-2xl flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
           <span className="inline-flex items-center gap-2 bg-amber-500/20 border border-amber-500/30 text-amber-400 px-4 py-1.5 rounded-full text-[10px] font-black uppercase mb-3">
@@ -4305,9 +4310,6 @@ function LiveTracker({ bracketName, isAdmin, getTeam, toast }: {
         <Info size={16} className="flex-shrink-0 mt-0.5" />
         <span>Live points here are an early preview only — your official Stage 1 score (shown on the Standings tab) is calculated once the group stage finishes and matches the final official table exactly.</span>
       </div>
-
-      {/* ── Live Knockout View: full bracket results + your picks vs reality ── */}
-      <LiveKnockoutView bracketName={bracketName} getTeam={getTeam} />
     </div>
   );
 }
