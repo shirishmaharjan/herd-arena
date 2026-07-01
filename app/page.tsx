@@ -368,8 +368,19 @@ function AdminPanel({
     if (my3rd  && my3rd   === off3rd)   knockoutScore += 10;
     if (myFinal && myFinal === offFinal) knockoutScore += 20;
 
-    const safeMatch = (a?: string, b?: string) =>
-      a && b && a.trim().toLowerCase() === b.trim().toLowerCase();
+    // Use the same alias-aware normalizer used everywhere else in the app
+    // (e.g. GoldenAwardsRace) so "Kylian Mbappe", "Kylian Mbappé", "Kylian Mbappa"
+    // etc. all resolve to the same canonical name before comparing.
+    // Strip accents (NFD + remove combining marks) as a fallback so that even
+    // names NOT yet in PLAYER_ALIASES (e.g. a future misspelling) still match
+    // as long as the accent-free letters line up.
+    const strip = (s: string) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+    const safeMatch = (a?: string, b?: string) => {
+      const na = normalizeName(a || '');
+      const nb = normalizeName(b || '');
+      if (!na || !nb) return false;
+      return na.toLowerCase() === nb.toLowerCase() || strip(na) === strip(nb);
+    };
     if (safeMatch(sub.golden_ball, off.golden_ball)) awardsScore += 5;
     if (safeMatch(sub.golden_boot, off.golden_boot)) awardsScore += 5;
     if (safeMatch(sub.golden_gloves, off.golden_gloves)) awardsScore += 5;
